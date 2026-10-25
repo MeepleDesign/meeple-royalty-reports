@@ -6,6 +6,7 @@ const links = [
   { href: "/publishers", label: "Publishers" },
   { href: "/mappings", label: "Mappings" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/email", label: "Email" },
 ];
 
 export function Nav() {
