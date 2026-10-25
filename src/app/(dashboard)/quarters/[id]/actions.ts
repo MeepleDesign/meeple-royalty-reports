@@ -3,17 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { requireOwner } from "@/lib/supabase/server-auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { parseEtsyCsv } from "@/lib/parsers/etsy";
-import { parseShopifyCsv } from "@/lib/parsers/shopify";
-import { parseRedbubbleCsv } from "@/lib/parsers/redbubble";
+import { parseSourceCsv, type FieldMapping } from "@/lib/parsers/generic";
 import { resolveAll, type GameMapping } from "@/lib/mapping/resolve";
-import type { Source, StandardRow } from "@/lib/parsers/types";
-
-const PARSERS: Record<"etsy" | "shopify" | "redbubble", (csv: string) => { rows: StandardRow[] }> = {
-  etsy: parseEtsyCsv,
-  shopify: parseShopifyCsv,
-  redbubble: parseRedbubbleCsv,
-};
+import type { Source } from "@/lib/parsers/types";
 
 export async function uploadFiles(runId: string, source: "etsy" | "shopify" | "redbubble", formData: FormData) {
   await requireOwner();
@@ -24,11 +16,28 @@ export async function uploadFiles(runId: string, source: "etsy" | "shopify" | "r
     throw new Error("No file selected");
   }
 
-  const { data: mappings } = await supabase.from("game_mappings").select("*");
+  const [{ data: mappings }, { data: fieldRows }] = await Promise.all([
+    supabase.from("game_mappings").select("*"),
+    supabase.from("source_field_mappings").select("standard_field, source_column").eq("source", source),
+  ]);
+
+  if (!fieldRows || fieldRows.length === 0) {
+    throw new Error(
+      `No column mapping configured for ${source} yet — set one up on the Sources page first.`
+    );
+  }
+  const fieldMapping = Object.fromEntries(
+    fieldRows.map((r) => [r.standard_field, r.source_column])
+  ) as unknown as FieldMapping;
+  if (!fieldMapping.sale_date || !fieldMapping.title || !fieldMapping.units_sold || !fieldMapping.total_net) {
+    throw new Error(
+      `Column mapping for ${source} is incomplete (date/title/units/total are required) — finish it on the Sources page.`
+    );
+  }
 
   for (const file of files) {
     const text = await file.text();
-    const { rows } = PARSERS[source](text);
+    const { rows } = parseSourceCsv(source, text, fieldMapping);
     const resolved = resolveAll(rows, (mappings ?? []) as GameMapping[]);
 
     const { data: upload, error: uploadError } = await supabase
