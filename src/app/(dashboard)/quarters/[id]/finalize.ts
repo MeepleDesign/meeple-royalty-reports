@@ -30,6 +30,36 @@ const SOURCE_TAB_TITLES: Record<string, string> = {
   manual: "Manual",
 };
 
+interface PublisherRow {
+  name: string;
+  royalty_rate: number;
+  payment_basis: "quarterly" | "annual";
+  annual_due_quarter: number;
+  roll_forward: boolean;
+  payout_threshold: number | null;
+}
+
+interface TransactionRow {
+  source: string;
+  sale_date: string;
+  raw_title: string;
+  raw_sku: string | null;
+  game_name: string | null;
+  publisher_id: string | null;
+  product_type: string | null;
+  listing_description: string;
+  variant: string | null;
+  units_sold: number;
+  unit_net: number | null;
+  total_net: number;
+  royalty_applicable: boolean | null;
+  mapping_id: string | null;
+}
+
+interface TransactionWithPublisher extends TransactionRow {
+  publishers: PublisherRow;
+}
+
 export async function finalizeQuarter(runId: string) {
   await requireOwner();
   const supabase = createServiceClient();
@@ -50,15 +80,17 @@ export async function finalizeQuarter(runId: string) {
     throw new Error(`${reviewCount} row(s) still need review before you can finalize this quarter.`);
   }
 
-  const { data: txRows, error: txError } = await supabase
+  const { data: txRowsRaw, error: txError } = await supabase
     .from("transactions")
     .select("*, publishers(*)")
     .eq("royalty_run_id", runId)
     .not("publisher_id", "is", null);
   if (txError) throw new Error(txError.message);
+  const txRows = (txRowsRaw ?? []) as TransactionWithPublisher[];
 
-  const byPublisher = new Map<string, typeof txRows>();
-  for (const row of txRows ?? []) {
+  const byPublisher = new Map<string, TransactionWithPublisher[]>();
+  for (const row of txRows) {
+    if (!row.publisher_id) continue; // excluded by the query above; narrows the type here too
     const list = byPublisher.get(row.publisher_id) ?? [];
     list.push(row);
     byPublisher.set(row.publisher_id, list);
@@ -193,22 +225,7 @@ async function getCarriedInBalance(
   return prior[0]?.carriedOut ?? 0;
 }
 
-function toResolvedRow(row: {
-  source: string;
-  sale_date: string;
-  raw_title: string;
-  raw_sku: string | null;
-  game_name: string | null;
-  publisher_id: string | null;
-  product_type: string | null;
-  listing_description: string;
-  variant: string | null;
-  units_sold: number;
-  unit_net: number | null;
-  total_net: number;
-  royalty_applicable: boolean | null;
-  mapping_id: string | null;
-}): ResolvedRow {
+function toResolvedRow(row: TransactionRow): ResolvedRow {
   return {
     source: row.source as ResolvedRow["source"],
     saleDate: row.sale_date,

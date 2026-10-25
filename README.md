@@ -6,7 +6,7 @@ Sheets royalty reports, with roll-forward and annual-accrual handling and
 per-publisher email templates.
 
 See [`SETUP.md`](./SETUP.md) for the one-time account setup (Supabase,
-Google Cloud service account, Vercel).
+Google Cloud OAuth, Vercel).
 
 ## How it works
 
@@ -46,4 +46,4 @@ under Supabase Authentication → Users, with the email in `APP_OWNER_EMAIL`.
 ## Stack
 
 Next.js (App Router, server actions) · Supabase (Postgres + Auth) ·
-Google Sheets/Drive API (service account) · Vercel.
+Google Sheets/Drive API (OAuth) · Vercel.
