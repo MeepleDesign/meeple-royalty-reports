@@ -21,12 +21,21 @@ export interface ResolvedRow extends StandardRow {
   needsReview: boolean;
 }
 
-function matches(mapping: GameMapping, row: StandardRow): boolean {
-  const field = mapping.match_field === "sku" ? row.rawSku : row.rawTitle;
+export function matchesPattern(
+  matchField: "title" | "sku",
+  matchType: "exact" | "contains",
+  pattern: string,
+  row: { rawTitle: string; rawSku?: string | null }
+): boolean {
+  const field = matchField === "sku" ? row.rawSku : row.rawTitle;
   if (!field) return false;
-  const pattern = mapping.match_pattern.toLowerCase();
+  const needle = pattern.toLowerCase();
   const value = field.toLowerCase();
-  return mapping.match_type === "exact" ? value === pattern : value.includes(pattern);
+  return matchType === "exact" ? value === needle : value.includes(needle);
+}
+
+function matches(mapping: GameMapping, row: StandardRow): boolean {
+  return matchesPattern(mapping.match_field, mapping.match_type, mapping.match_pattern, row);
 }
 
 /**
