@@ -31,20 +31,18 @@ Drive.
    - User type: **Internal** if offered (your Workspace org) — otherwise **External**.
    - Fill in the required app name/support email fields, save through the wizard. Leave it in **Testing** status — no Google review needed since only you'll use it. If it's External, add `boardgames@meepledesign.com` under **Test users**.
 4. **APIs & Services → Credentials** → **+ Create Credentials → OAuth client ID**.
-   - Application type: **Desktop app**.
-   - Any name (e.g. `royalty-report-cli`) → **Create**.
-   - Copy the **Client ID** and **Client secret** shown:
+   - Application type: **Web application** (not Desktop app — Desktop app clients can't register a custom redirect URI, which the Playground needs).
+   - Any name (e.g. `royalty-report-playground`).
+   - Under **Authorized redirect URIs**, add exactly: `https://developers.google.com/oauthplayground`
+   - **Create**. Copy the **Client ID** and **Client secret** shown:
      - **`GOOGLE_OAUTH_CLIENT_ID`**
      - **`GOOGLE_OAUTH_CLIENT_SECRET`**
-5. Get a refresh token via Google's OAuth Playground (https://developers.google.com/oauthplayground):
-   - Click the **gear icon** (top right) → check **"Use your own OAuth credentials"** → paste in the Client ID and Client secret from step 4 → close.
-   - In the left panel, under "Step 1", find and select these two scopes (or paste them into the "Input your own scopes" box):
-     `https://www.googleapis.com/auth/spreadsheets`
-     `https://www.googleapis.com/auth/drive`
-   - Click **Authorize APIs**, sign in as `boardgames@meepledesign.com`, accept.
-   - In "Step 2", click **Exchange authorization code for tokens**.
-   - Copy the **Refresh token** shown:
-     - **`GOOGLE_OAUTH_REFRESH_TOKEN`**
+5. Get two refresh tokens via Google's OAuth Playground (https://developers.google.com/oauthplayground) — one per API, done as two separate passes since that's the reliable way through the Playground's UI:
+   - Click the **gear icon** (top right) → check **"Use your own OAuth credentials"** → paste in the Client ID and Client secret from step 4 → close. **Double check this is still set before each pass below** — it has a habit of silently reverting to the Playground's own shared demo credentials.
+   - **Pass 1 (Sheets):** Step 1 → select the **Google Sheets API v4** scope (`https://www.googleapis.com/auth/spreadsheets`) → **Authorize APIs** → sign in as `boardgames@meepledesign.com` → accept → Step 2 → **Exchange authorization code for tokens** → copy the **Refresh token**:
+     - **`GOOGLE_OAUTH_SHEETS_REFRESH_TOKEN`**
+   - **Pass 2 (Drive):** repeat, this time selecting the **Google Drive API v3** scope (`https://www.googleapis.com/auth/drive`) instead:
+     - **`GOOGLE_OAUTH_DRIVE_REFRESH_TOKEN`**
 6. In your own Google Drive, create a folder called e.g. **"Royalty Reports"**. This is the root folder everything gets organized under.
 7. Open the folder in the browser and copy its ID from the URL
    (`https://drive.google.com/drive/folders/`**`THIS_PART_IS_THE_ID`**):
@@ -68,5 +66,6 @@ Once you have them, paste here (this chat is private to you, but let me know if 
 - `DATABASE_URL`
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `GOOGLE_OAUTH_CLIENT_SECRET`
-- `GOOGLE_OAUTH_REFRESH_TOKEN`
+- `GOOGLE_OAUTH_SHEETS_REFRESH_TOKEN`
+- `GOOGLE_OAUTH_DRIVE_REFRESH_TOKEN`
 - `ROYALTY_ROOT_FOLDER_ID`
