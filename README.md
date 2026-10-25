@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Meeple Design — Royalty Reports
 
-## Getting Started
+Internal tool for turning quarterly sales exports from Etsy, Shopify and
+Redbubble (plus one manually-entered source) into per-publisher Google
+Sheets royalty reports, with roll-forward and annual-accrual handling and
+per-publisher email templates.
 
-First, run the development server:
+See [`SETUP.md`](./SETUP.md) for the one-time account setup (Supabase,
+Google Cloud service account, Vercel).
+
+## How it works
+
+1. **Publishers** (`/publishers`) — one row per publisher: royalty rate
+   (defaults to 10%), quarterly vs annual payment basis, roll-forward
+   threshold, contact email, and a custom email template.
+2. **Mappings** (`/mappings`) — rules that turn a raw listing title/SKU
+   from a source file into a game + publisher + "does royalty apply"
+   decision. Built up over time; unmatched rows get a one-time manual
+   review that can save a new rule.
+3. **Quarters** (`/`) — create a quarter, upload that quarter's Etsy
+   (monthly), Shopify (single file) and Redbubble (monthly) exports, add
+   any manual rows, resolve anything flagged for review, then **Finalize**.
+4. Finalizing: computes each publisher's royalty for the quarter (with
+   roll-forward-to-threshold and annual-accrual logic), writes a Google
+   Sheet per publisher (tabs per source + a Summary tab) into
+   `Royalty Reports/<Publisher>/<Year>/Q<N>` in Drive, and pre-creates the
+   next quarter's (and, on Q4, next year's) folder.
+5. **Analytics** (`/analytics`) — cross-publisher revenue/units by
+   publisher, by source, and top games — internal only, not something any
+   publisher sees.
+6. **Email** (`/email`) — renders a publisher's custom template with that
+   quarter's numbers filled in, ready to copy into your own email client.
+
+## Local development
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in values from SETUP.md
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Apply `supabase/migrations/0001_init.sql` to your Supabase project (via the
+SQL editor, or the Supabase CLI) before first use. Create your login user
+under Supabase Authentication → Users, with the email in `APP_OWNER_EMAIL`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js (App Router, server actions) · Supabase (Postgres + Auth) ·
+Google Sheets/Drive API (service account) · Vercel.
