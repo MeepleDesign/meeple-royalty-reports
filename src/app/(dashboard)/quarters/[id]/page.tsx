@@ -4,23 +4,31 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { uploadFiles, addManualRow, deleteUpload } from "./actions";
 import { finalizeQuarter } from "./finalize";
 import { quarterLabel } from "@/lib/royalty/quarter";
+import { ManualEntryForm } from "./ManualEntryForm";
 
 export default async function QuarterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: runId } = await params;
   const supabase = createServiceClient();
 
-  const [{ data: run }, { data: uploads }, { count: reviewCount }, { data: publishers }, { data: balances }] =
-    await Promise.all([
-      supabase.from("royalty_runs").select("*").eq("id", runId).single(),
-      supabase.from("uploads").select("*").eq("royalty_run_id", runId).order("uploaded_at"),
-      supabase
-        .from("transactions")
-        .select("id", { count: "exact", head: true })
-        .eq("royalty_run_id", runId)
-        .eq("needs_review", true),
-      supabase.from("publishers").select("id, name").order("name"),
-      supabase.from("publisher_balances").select("*, publishers(name)").eq("royalty_run_id", runId),
-    ]);
+  const [
+    { data: run },
+    { data: uploads },
+    { count: reviewCount },
+    { data: publishers },
+    { data: balances },
+    { data: prices },
+  ] = await Promise.all([
+    supabase.from("royalty_runs").select("*").eq("id", runId).single(),
+    supabase.from("uploads").select("*").eq("royalty_run_id", runId).order("uploaded_at"),
+    supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("royalty_run_id", runId)
+      .eq("needs_review", true),
+    supabase.from("publishers").select("id, name").order("name"),
+    supabase.from("publisher_balances").select("*, publishers(name)").eq("royalty_run_id", runId),
+    supabase.from("product_prices").select("id, product_type, variant, unit_net").order("product_type"),
+  ]);
 
   if (!run) notFound();
 
@@ -48,7 +56,11 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
             <UploadCard runId={runId} source="shopify" label="Shopify (one file)" multiple={false} />
           </div>
 
-          <ManualEntryCard runId={runId} publishers={publishers ?? []} />
+          <ManualEntryForm
+            publishers={publishers ?? []}
+            prices={(prices ?? []).map((p) => ({ ...p, unit_net: Number(p.unit_net) }))}
+            action={addManualRow.bind(null, runId)}
+          />
 
           <div className="card p-0 overflow-hidden">
             <div className="px-4 py-3 border-b border-neutral-100 font-medium text-sm text-neutral-700">
@@ -160,45 +172,5 @@ function UploadCard({
         Upload
       </button>
     </form>
-  );
-}
-
-function ManualEntryCard({
-  runId,
-  publishers,
-}: {
-  runId: string;
-  publishers: { id: string; name: string }[];
-}) {
-  return (
-    <div className="card space-y-3">
-      <div className="font-medium text-sm text-neutral-700">Manual entry (4th source)</div>
-      <form action={addManualRow.bind(null, runId)} className="grid grid-cols-4 gap-3">
-        <input name="sale_date" type="date" required className="input" />
-        <input name="game_name" placeholder="Game" required className="input" />
-        <select name="publisher_id" required className="input">
-          <option value="">Publisher…</option>
-          {publishers.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <input name="product_type" placeholder="Product (e.g. Poster)" className="input" />
-        <input name="listing_description" placeholder="Listing description" required className="input col-span-2" />
-        <input name="variant" placeholder="Variant" className="input" />
-        <input name="units_sold" type="number" step="1" defaultValue={1} placeholder="Units" required className="input" />
-        <input name="total_net" type="number" step="0.01" placeholder="Total NET £" required className="input" />
-        <div className="flex items-center gap-2">
-          <input id="manual-royalty" name="royalty_applicable" type="checkbox" defaultChecked />
-          <label htmlFor="manual-royalty" className="text-sm text-neutral-700">
-            Royalty applies
-          </label>
-        </div>
-        <button type="submit" className="btn-secondary">
-          Add row
-        </button>
-      </form>
-    </div>
   );
 }
