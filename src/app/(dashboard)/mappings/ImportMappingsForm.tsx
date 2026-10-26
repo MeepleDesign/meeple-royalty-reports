@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { importMappingsCsv, type ImportResult } from "./import-actions";
 
-const initialState: ImportResult = { imported: 0, errors: [], detectedColumns: [], parseWarnings: [] };
+const initialState: ImportResult = { imported: 0, errors: [], detectedColumns: [], parseWarnings: [], createdPublishers: [] };
 
 export function ImportMappingsForm() {
   const [state, formAction, pending] = useActionState(importMappingsCsv, initialState);
@@ -18,7 +18,9 @@ export function ImportMappingsForm() {
         (exact/contains, defaults to contains), <code>Match Pattern</code> (required), <code>Game Name</code>{" "}
         (required), <code>Publisher Name</code> (required — must already exist under Publishers),{" "}
         <code>Royalty Applicable</code> (yes/no, defaults to yes), <code>Product Type Override</code>,{" "}
-        <code>Priority</code>, <code>Notes</code>.
+        <code>Priority</code>, <code>Notes</code>. If a row has no separate match pattern column, the
+        game name column is used for both. Publishers that don&apos;t exist yet are created
+        automatically (with default 10% quarterly settings — review them under Publishers afterward).
       </p>
       <form action={formAction} className="flex items-center gap-3">
         <input type="file" name="file" accept=".csv" required className="text-sm" />
@@ -45,6 +47,12 @@ export function ImportMappingsForm() {
 
       {state.imported > 0 && (
         <p className="text-sm text-green-700">Imported {state.imported} mapping(s).</p>
+      )}
+      {state.createdPublishers.length > 0 && (
+        <p className="text-sm text-blue-700">
+          Created {state.createdPublishers.length} new publisher(s): {state.createdPublishers.join(", ")} — review
+          their royalty rate/payment basis under Publishers.
+        </p>
       )}
       {state.errors.length > 0 && (
         <div className="text-sm text-red-600 space-y-1">

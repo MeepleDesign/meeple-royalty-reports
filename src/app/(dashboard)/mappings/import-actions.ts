@@ -10,14 +10,15 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
   detectedColumns: string[];
   parseWarnings: string[];
+  createdPublishers: string[];
 }
 
 const SOURCES = new Set(["etsy", "shopify", "redbubble", "manual", "any"]);
 const FALSY = new Set(["no", "n", "false", "0"]);
 
 const COLUMN_ALIASES: Record<string, string[]> = {
-  source: ["source", "platform"],
-  match_field: ["match field", "match_field", "matchfield", "field"],
+  source: ["source", "platform", "seen on"],
+  match_field: ["match field", "match_field", "matchfield", "field", "match"],
   match_type: ["match type", "match_type", "matchtype"],
   match_pattern: ["match pattern", "match_pattern", "pattern", "match text", "search term", "keyword", "text"],
   game_name: ["game name", "game_name", "game", "board game", "boardgame"],
@@ -69,7 +70,13 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { imported: 0, errors: [{ row: 0, message: "No file selected" }], detectedColumns: [], parseWarnings: [] };
+    return {
+      imported: 0,
+      errors: [{ row: 0, message: "No file selected" }],
+      detectedColumns: [],
+      parseWarnings: [],
+      createdPublishers: [],
+    };
   }
 
   const text = await file.text();
@@ -85,55 +92,75 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
 
   const { data: publishers } = await supabase.from("publishers").select("id, name");
   const publisherByName = new Map((publishers ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
+  const createdPublishers: string[] = [];
 
   const errors: ImportResult["errors"] = [];
   const toInsert: Record<string, unknown>[] = [];
 
-  parsed.data.forEach((row, index) => {
+  for (const [index, row] of parsed.data.entries()) {
     const rowNumber = index + 2;
 
-    const matchPattern = findValue(row, "match_pattern");
-    const gameName = findValue(row, "game_name");
+    let matchPattern = findValue(row, "match_pattern");
+    let gameName = findValue(row, "game_name");
     const publisherName = findValue(row, "publisher_name");
+
+    // Many spreadsheets use a single descriptive column for both "the game"
+    // and "the text to match the listing on" — if only one of the two is
+    // present, use it for both rather than failing the row.
+    if (!matchPattern && gameName) {
+      matchPattern = gameName;
+      parseWarnings.push(
+        `Row ${rowNumber}: no separate match pattern column found — used the game name column's value for both.`
+      );
+    } else if (!gameName && matchPattern) {
+      gameName = matchPattern;
+    }
 
     if (!matchPattern) {
       errors.push({ row: rowNumber, message: missingFieldMessage("match_pattern", "match pattern") });
-      return;
+      continue;
     }
     if (!gameName) {
       errors.push({ row: rowNumber, message: missingFieldMessage("game_name", "game name") });
-      return;
+      continue;
     }
     if (!publisherName) {
       errors.push({ row: rowNumber, message: missingFieldMessage("publisher_name", "publisher name") });
-      return;
+      continue;
     }
-    const publisherId = publisherByName.get(publisherName.toLowerCase());
+
+    let publisherId = publisherByName.get(publisherName.toLowerCase());
     if (!publisherId) {
-      const known = (publishers ?? []).map((p) => p.name).join(", ") || "(none yet — add one under Publishers)";
-      errors.push({
-        row: rowNumber,
-        message: `Publisher "${publisherName}" not found. Known publishers: ${known}`,
-      });
-      return;
+      const { data: newPublisher, error: createError } = await supabase
+        .from("publishers")
+        .insert({ name: publisherName })
+        .select("id")
+        .single();
+      if (createError || !newPublisher) {
+        errors.push({ row: rowNumber, message: `Could not create publisher "${publisherName}": ${createError?.message}` });
+        continue;
+      }
+      publisherId = newPublisher.id;
+      publisherByName.set(publisherName.toLowerCase(), publisherId);
+      createdPublishers.push(publisherName);
     }
 
     const sourceRaw = findValue(row, "source")?.toLowerCase() ?? "any";
     if (!SOURCES.has(sourceRaw)) {
       errors.push({ row: rowNumber, message: `Unknown source "${sourceRaw}" (expected etsy/shopify/redbubble/manual/any)` });
-      return;
+      continue;
     }
 
     const matchFieldRaw = findValue(row, "match_field")?.toLowerCase() ?? "title";
     if (matchFieldRaw !== "title" && matchFieldRaw !== "sku") {
       errors.push({ row: rowNumber, message: `Unknown match field "${matchFieldRaw}" (expected title/sku)` });
-      return;
+      continue;
     }
 
     const matchTypeRaw = findValue(row, "match_type")?.toLowerCase() ?? "contains";
     if (matchTypeRaw !== "exact" && matchTypeRaw !== "contains") {
       errors.push({ row: rowNumber, message: `Unknown match type "${matchTypeRaw}" (expected exact/contains)` });
-      return;
+      continue;
     }
 
     const royaltyRaw = findValue(row, "royalty_applicable")?.toLowerCase();
@@ -154,15 +181,22 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
       priority,
       notes: findValue(row, "notes") ?? null,
     });
-  });
+  }
 
   if (toInsert.length > 0) {
     const { error } = await supabase.from("game_mappings").insert(toInsert);
     if (error) {
-      return { imported: 0, errors: [...errors, { row: 0, message: error.message }], detectedColumns, parseWarnings };
+      return {
+        imported: 0,
+        errors: [...errors, { row: 0, message: error.message }],
+        detectedColumns,
+        parseWarnings,
+        createdPublishers,
+      };
     }
   }
 
   revalidatePath("/mappings");
-  return { imported: toInsert.length, errors, detectedColumns, parseWarnings };
+  revalidatePath("/publishers");
+  return { imported: toInsert.length, errors, detectedColumns, parseWarnings, createdPublishers };
 }
