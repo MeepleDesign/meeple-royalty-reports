@@ -8,36 +8,59 @@ import { createServiceClient } from "@/lib/supabase/server";
 export interface ImportResult {
   imported: number;
   errors: { row: number; message: string }[];
+  detectedColumns: string[];
+  parseWarnings: string[];
 }
 
 const SOURCES = new Set(["etsy", "shopify", "redbubble", "manual", "any"]);
 const FALSY = new Set(["no", "n", "false", "0"]);
 
 const COLUMN_ALIASES: Record<string, string[]> = {
-  source: ["source"],
-  match_field: ["match field", "match_field", "matchfield"],
+  source: ["source", "platform"],
+  match_field: ["match field", "match_field", "matchfield", "field"],
   match_type: ["match type", "match_type", "matchtype"],
-  match_pattern: ["match pattern", "match_pattern", "pattern"],
-  game_name: ["game name", "game_name", "game", "board game"],
+  match_pattern: ["match pattern", "match_pattern", "pattern", "match text", "search term", "keyword", "text"],
+  game_name: ["game name", "game_name", "game", "board game", "boardgame"],
   publisher_name: ["publisher name", "publisher_name", "publisher"],
   royalty_applicable: ["royalty applicable", "royalty_applicable", "royalty"],
   product_type_override: ["product type override", "product_type_override", "product type", "product_type"],
   priority: ["priority"],
-  notes: ["notes"],
+  notes: ["notes", "note"],
 };
 
 function normalizeKey(key: string): string {
-  return key.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return key
+    .replace(/^﻿/, "") // strip a UTF-8 BOM, common from Excel exports
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
+/**
+ * Tries an exact alias match first; if none of the row's columns exactly
+ * match an alias, falls back to "does this column's normalized name
+ * contain the alias" (e.g. a column literally called "Search Pattern"
+ * still satisfies the "pattern" alias for match_pattern).
+ */
 function findValue(row: Record<string, string>, field: keyof typeof COLUMN_ALIASES): string | undefined {
-  const normalizedRow: Record<string, string> = {};
-  for (const [k, v] of Object.entries(row)) normalizedRow[normalizeKey(k)] = v;
-  for (const alias of COLUMN_ALIASES[field]) {
-    const value = normalizedRow[normalizeKey(alias)];
-    if (value !== undefined && value.trim() !== "") return value.trim();
+  const normalizedRow = Object.entries(row).map(([k, v]) => [normalizeKey(k), v] as const);
+  const aliases = COLUMN_ALIASES[field];
+
+  for (const alias of aliases) {
+    const match = normalizedRow.find(([k]) => k === normalizeKey(alias));
+    if (match && match[1]?.trim()) return match[1].trim();
+  }
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeKey(alias);
+    const match = normalizedRow.find(([k]) => k.includes(normalizedAlias));
+    if (match && match[1]?.trim()) return match[1].trim();
   }
   return undefined;
+}
+
+function missingFieldMessage(field: keyof typeof COLUMN_ALIASES, label: string): string {
+  return `Missing ${label} — looked for a column named one of: ${COLUMN_ALIASES[field].join(", ")} (check the "Detected columns" list below to see what was actually read from your file)`;
 }
 
 export async function importMappingsCsv(_prev: ImportResult | null, formData: FormData): Promise<ImportResult> {
@@ -46,11 +69,19 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { imported: 0, errors: [{ row: 0, message: "No file selected" }] };
+    return { imported: 0, errors: [{ row: 0, message: "No file selected" }], detectedColumns: [], parseWarnings: [] };
   }
 
   const text = await file.text();
   const parsed = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true });
+
+  const detectedColumns = parsed.meta.fields ?? [];
+  const parseWarnings = parsed.errors.map((e) => `Row ${e.row != null ? e.row + 2 : "?"}: ${e.message}`);
+  if (detectedColumns.length <= 1) {
+    parseWarnings.unshift(
+      `Only detected ${detectedColumns.length} column — if your file uses semicolons or tabs instead of commas, re-save it as a standard comma-separated CSV.`
+    );
+  }
 
   const { data: publishers } = await supabase.from("publishers").select("id, name");
   const publisherByName = new Map((publishers ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
@@ -66,20 +97,24 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
     const publisherName = findValue(row, "publisher_name");
 
     if (!matchPattern) {
-      errors.push({ row: rowNumber, message: "Missing match pattern" });
+      errors.push({ row: rowNumber, message: missingFieldMessage("match_pattern", "match pattern") });
       return;
     }
     if (!gameName) {
-      errors.push({ row: rowNumber, message: "Missing game name" });
+      errors.push({ row: rowNumber, message: missingFieldMessage("game_name", "game name") });
       return;
     }
     if (!publisherName) {
-      errors.push({ row: rowNumber, message: "Missing publisher name" });
+      errors.push({ row: rowNumber, message: missingFieldMessage("publisher_name", "publisher name") });
       return;
     }
     const publisherId = publisherByName.get(publisherName.toLowerCase());
     if (!publisherId) {
-      errors.push({ row: rowNumber, message: `Publisher "${publisherName}" not found — add it under Publishers first` });
+      const known = (publishers ?? []).map((p) => p.name).join(", ") || "(none yet — add one under Publishers)";
+      errors.push({
+        row: rowNumber,
+        message: `Publisher "${publisherName}" not found. Known publishers: ${known}`,
+      });
       return;
     }
 
@@ -124,10 +159,10 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
   if (toInsert.length > 0) {
     const { error } = await supabase.from("game_mappings").insert(toInsert);
     if (error) {
-      return { imported: 0, errors: [...errors, { row: 0, message: error.message }] };
+      return { imported: 0, errors: [...errors, { row: 0, message: error.message }], detectedColumns, parseWarnings };
     }
   }
 
   revalidatePath("/mappings");
-  return { imported: toInsert.length, errors };
+  return { imported: toInsert.length, errors, detectedColumns, parseWarnings };
 }

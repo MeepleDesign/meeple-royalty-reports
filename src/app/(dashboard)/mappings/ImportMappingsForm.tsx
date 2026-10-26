@@ -3,10 +3,11 @@
 import { useActionState } from "react";
 import { importMappingsCsv, type ImportResult } from "./import-actions";
 
-const initialState: ImportResult = { imported: 0, errors: [] };
+const initialState: ImportResult = { imported: 0, errors: [], detectedColumns: [], parseWarnings: [] };
 
 export function ImportMappingsForm() {
   const [state, formAction, pending] = useActionState(importMappingsCsv, initialState);
+  const attempted = state.imported > 0 || state.errors.length > 0 || state.detectedColumns.length > 0;
 
   return (
     <div className="card space-y-3">
@@ -25,6 +26,22 @@ export function ImportMappingsForm() {
           {pending ? "Importing…" : "Import"}
         </button>
       </form>
+
+      {attempted && (
+        <p className="text-xs text-neutral-500">
+          Detected columns: {state.detectedColumns.length > 0 ? state.detectedColumns.join(", ") : "(none — see warnings below)"}
+        </p>
+      )}
+
+      {state.parseWarnings.length > 0 && (
+        <div className="text-sm text-amber-700 space-y-1">
+          <ul className="list-disc list-inside">
+            {state.parseWarnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {state.imported > 0 && (
         <p className="text-sm text-green-700">Imported {state.imported} mapping(s).</p>
