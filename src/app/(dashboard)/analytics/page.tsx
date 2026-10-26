@@ -25,6 +25,7 @@ export default async function AnalyticsPage({
   const byPublisher = groupSum(rows, (r) => r.publishers?.name ?? "Unknown");
   const bySource = groupSum(rows, (r) => r.source);
   const byGame = groupSum(rows, (r) => r.game_name ?? "Unknown");
+  const byProductType = groupSum(rows, (r) => r.product_type ?? "Unknown");
 
   return (
     <div className="space-y-8">
@@ -52,6 +53,7 @@ export default async function AnalyticsPage({
 
       <RankedTable title="Revenue by publisher" rows={byPublisher} total={totalRevenue} />
       <RankedTable title="Revenue by source" rows={bySource} total={totalRevenue} />
+      <RankedTable title="Revenue by product type" rows={byProductType} total={totalRevenue} />
       <RankedTable title="Top games" rows={byGame} total={totalRevenue} limit={15} />
     </div>
   );
