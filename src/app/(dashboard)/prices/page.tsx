@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
+import { ImportPricesForm } from "./ImportPricesForm";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,8 @@ export default async function PricesPage() {
           New price
         </Link>
       </div>
+
+      <ImportPricesForm />
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
