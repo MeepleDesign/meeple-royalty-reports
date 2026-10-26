@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ImportMappingsForm } from "./ImportMappingsForm";
 import { SheetSyncControls } from "./SheetSyncControls";
+import { getCurrentSheetLink } from "./sheet-actions";
 import { deleteMapping, deleteAllMappings } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function MappingsPage({
 }) {
   const { q } = await searchParams;
   const supabase = createServiceClient();
+  const currentSheet = await getCurrentSheetLink();
 
   const { data: mappings, error } = await supabase
     .from("game_mappings")
@@ -50,7 +52,7 @@ export default async function MappingsPage({
       </div>
 
       <ImportMappingsForm />
-      <SheetSyncControls />
+      <SheetSyncControls current={currentSheet} />
 
       <form method="get" className="flex items-center gap-2">
         <input

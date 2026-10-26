@@ -1,16 +1,18 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { pushMappingsToSheet, pullMappingsFromSheet, type SheetSyncResult } from "./sheet-actions";
+import { pushMappingsToSheet, pullMappingsFromSheet, linkExistingSheet, type SheetSyncResult, type LinkSheetResult } from "./sheet-actions";
 
 const initialPullState: SheetSyncResult = { imported: 0, updated: 0, errors: [], createdPublishers: [], url: null };
+const initialLinkState: LinkSheetResult = { ok: false, message: "" };
 
-export function SheetSyncControls() {
+export function SheetSyncControls({ current }: { current: { url: string; tabTitle: string } | null }) {
   const [pullState, pullAction, pullPending] = useActionState(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- useActionState requires this signature
     async (_prev: SheetSyncResult) => pullMappingsFromSheet(),
     initialPullState
   );
+  const [linkState, linkAction, linkPending] = useActionState(linkExistingSheet, initialLinkState);
   const [pushUrl, setPushUrl] = useState<string | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushPending, startPush] = useTransition();
@@ -27,13 +29,20 @@ export function SheetSyncControls() {
     });
   }
 
+  const activeUrl = pushUrl ?? pullState.url ?? (linkState.ok ? linkState.url : null) ?? current?.url ?? null;
+  const activeTab = (linkState.ok ? linkState.tabTitle : null) ?? current?.tabTitle ?? null;
+
   return (
     <div className="card space-y-3">
       <div className="font-medium text-sm text-neutral-700">Google Sheet</div>
       <p className="text-xs text-neutral-500">
         Push your mappings to a Google Sheet to review/edit them there, then pull any changes back
         (new rows are created, rows with a Mapping ID are updated in place — nothing is auto-deleted).
+        By default the app creates its own sheet, or you can link an existing one below.
       </p>
+
+      {activeTab && <p className="text-xs text-neutral-500">Currently linked tab: &quot;{activeTab}&quot;</p>}
+
       <div className="flex items-center gap-3">
         <button type="button" onClick={handlePush} disabled={pushPending} className="btn-secondary disabled:opacity-40">
           {pushPending ? "Pushing…" : "Push to Google Sheet"}
@@ -43,8 +52,8 @@ export function SheetSyncControls() {
             {pullPending ? "Syncing…" : "Sync from Google Sheet"}
           </button>
         </form>
-        {(pushUrl || pullState.url) && (
-          <a href={pushUrl ?? pullState.url ?? undefined} target="_blank" className="text-sm text-neutral-600 hover:underline">
+        {activeUrl && (
+          <a href={activeUrl} target="_blank" className="text-sm text-neutral-600 hover:underline">
             Open sheet
           </a>
         )}
@@ -76,6 +85,28 @@ export function SheetSyncControls() {
           </ul>
         </div>
       )}
+
+      <details className="pt-2 border-t border-neutral-100">
+        <summary className="text-sm text-neutral-600 cursor-pointer">Link an existing Google Sheet instead</summary>
+        <form action={linkAction} className="mt-3 space-y-2">
+          <div className="space-y-1">
+            <label className="text-xs text-neutral-500 block">
+              Sheet URL (paste the link while viewing the tab you want — the tab is detected automatically)
+            </label>
+            <input name="sheet_url" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=..." required className="input" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-neutral-500 block">Tab name (only needed if the URL doesn&apos;t pin one, or has several tabs)</label>
+            <input name="tab_name" placeholder="e.g. Publisher Lookup" className="input" />
+          </div>
+          <button type="submit" disabled={linkPending} className="btn-secondary disabled:opacity-40">
+            {linkPending ? "Linking…" : "Use this sheet"}
+          </button>
+          {linkState.message && (
+            <p className={`text-sm ${linkState.ok ? "text-green-700" : "text-red-600"}`}>{linkState.message}</p>
+          )}
+        </form>
+      </details>
     </div>
   );
 }

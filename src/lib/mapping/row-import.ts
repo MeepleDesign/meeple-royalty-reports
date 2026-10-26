@@ -13,9 +13,12 @@ const FALSY = new Set(["no", "n", "false", "0"]);
 // that listing appears, not just the source it happened to be noticed on.
 export const MAPPING_COLUMN_ALIASES: Record<string, string[]> = {
   mapping_id: ["mapping id", "id"],
-  match_field: ["match field", "match_field", "matchfield", "field", "match"],
+  match_field: ["match field", "match_field", "matchfield", "field"],
   match_type: ["match type", "match_type", "matchtype"],
-  match_pattern: ["match pattern", "match_pattern", "pattern", "match text", "search term", "keyword", "text"],
+  // A bare "Match" column holds the pattern text itself in practice (e.g.
+  // the full listing title), not a title/SKU indicator — match_field
+  // already defaults sensibly to "title" when no column names it directly.
+  match_pattern: ["match pattern", "match_pattern", "pattern", "match text", "search term", "keyword", "text", "match"],
   game_name: ["game name", "game_name", "game", "board game", "boardgame"],
   publisher_name: ["publisher name", "publisher_name", "publisher"],
   royalty_applicable: ["royalty applicable", "royalty_applicable", "royalty"],
