@@ -4,7 +4,7 @@ import { logout } from "@/app/login/actions";
 const links = [
   { href: "/", label: "Quarters" },
   { href: "/publishers", label: "Publishers" },
-  { href: "/mappings", label: "Mappings" },
+  { href: "/mappings", label: "Publisher Mapping" },
   { href: "/sources", label: "Sources" },
   { href: "/prices", label: "Prices" },
   { href: "/analytics", label: "Analytics" },

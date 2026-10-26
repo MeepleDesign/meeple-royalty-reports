@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
+import { ImportMappingsForm } from "./ImportMappingsForm";
 
 
 export default async function MappingsPage() {
@@ -15,11 +16,13 @@ export default async function MappingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-neutral-900">Game mappings</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Board Game Publisher Mapping</h1>
         <Link href="/mappings/new" className="btn-primary">
           New mapping
         </Link>
       </div>
+
+      <ImportMappingsForm />
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
