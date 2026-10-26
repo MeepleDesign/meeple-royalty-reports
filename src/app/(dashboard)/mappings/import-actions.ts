@@ -13,11 +13,11 @@ export interface ImportResult {
   createdPublishers: string[];
 }
 
-const SOURCES = new Set(["etsy", "shopify", "redbubble", "manual", "any"]);
 const FALSY = new Set(["no", "n", "false", "0"]);
 
+// Mappings aren't scoped to a platform — a title match should apply wherever
+// that listing appears, not just the source it happened to be noticed on.
 const COLUMN_ALIASES: Record<string, string[]> = {
-  source: ["source", "platform", "seen on"],
   match_field: ["match field", "match_field", "matchfield", "field", "match"],
   match_type: ["match type", "match_type", "matchtype"],
   match_pattern: ["match pattern", "match_pattern", "pattern", "match text", "search term", "keyword", "text"],
@@ -96,6 +96,7 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
 
   const errors: ImportResult["errors"] = [];
   const toInsert: Record<string, unknown>[] = [];
+  let fallbackPatternCount = 0;
 
   for (const [index, row] of parsed.data.entries()) {
     const rowNumber = index + 2;
@@ -106,12 +107,13 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
 
     // Many spreadsheets use a single descriptive column for both "the game"
     // and "the text to match the listing on" — if only one of the two is
-    // present, use it for both rather than failing the row.
+    // present, use it for both rather than failing the row. Counted once
+    // for a summary line rather than logged per row (every row in a file
+    // with no dedicated pattern column would otherwise repeat the same
+    // message, which reads like a wall of errors rather than one fact).
     if (!matchPattern && gameName) {
       matchPattern = gameName;
-      parseWarnings.push(
-        `Row ${rowNumber}: no separate match pattern column found — used the game name column's value for both.`
-      );
+      fallbackPatternCount += 1;
     } else if (!gameName && matchPattern) {
       gameName = matchPattern;
     }
@@ -145,12 +147,6 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
       createdPublishers.push(publisherName);
     }
 
-    const sourceRaw = findValue(row, "source")?.toLowerCase() ?? "any";
-    if (!SOURCES.has(sourceRaw)) {
-      errors.push({ row: rowNumber, message: `Unknown source "${sourceRaw}" (expected etsy/shopify/redbubble/manual/any)` });
-      continue;
-    }
-
     const matchFieldRaw = findValue(row, "match_field")?.toLowerCase() ?? "title";
     if (matchFieldRaw !== "title" && matchFieldRaw !== "sku") {
       errors.push({ row: rowNumber, message: `Unknown match field "${matchFieldRaw}" (expected title/sku)` });
@@ -170,7 +166,7 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
     const priority = priorityRaw ? parseInt(priorityRaw, 10) || 0 : 0;
 
     toInsert.push({
-      source: sourceRaw,
+      source: "any",
       match_field: matchFieldRaw,
       match_type: matchTypeRaw,
       match_pattern: matchPattern,
@@ -181,6 +177,12 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
       priority,
       notes: findValue(row, "notes") ?? null,
     });
+  }
+
+  if (fallbackPatternCount > 0) {
+    parseWarnings.push(
+      `${fallbackPatternCount} row(s) had no separate match pattern column, so the game name column's value was used for both.`
+    );
   }
 
   if (toInsert.length > 0) {

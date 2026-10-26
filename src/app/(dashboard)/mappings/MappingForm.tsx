@@ -1,7 +1,6 @@
 type Publisher = { id: string; name: string };
 
 type Mapping = {
-  source?: string;
   match_field?: string;
   match_type?: string;
   match_pattern?: string;
@@ -24,16 +23,6 @@ export function MappingForm({
 }) {
   return (
     <form action={action} className="space-y-5 max-w-xl">
-      <Field label="Source">
-        <select name="source" defaultValue={mapping?.source ?? "any"} className="input">
-          <option value="any">Any source</option>
-          <option value="etsy">Etsy</option>
-          <option value="shopify">Shopify</option>
-          <option value="redbubble">Redbubble</option>
-          <option value="manual">Manual</option>
-        </select>
-      </Field>
-
       <Field label="Match against">
         <select name="match_field" defaultValue={mapping?.match_field ?? "title"} className="input">
           <option value="title">Listing title / item name / &quot;Work&quot;</option>

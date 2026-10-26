@@ -7,7 +7,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 function parseMappingForm(formData: FormData) {
   return {
-    source: String(formData.get("source") || "any"),
+    // Mappings aren't scoped to a platform — a match applies wherever the
+    // listing appears, not just the source it was noticed on.
+    source: "any",
     match_field: String(formData.get("match_field") || "title"),
     match_type: String(formData.get("match_type") || "contains"),
     match_pattern: String(formData.get("match_pattern") || "").trim(),

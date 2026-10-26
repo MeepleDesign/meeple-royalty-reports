@@ -35,7 +35,9 @@ export async function resolveReviewRow(runId: string, transactionId: string, for
     const { data: mapping, error: mappingError } = await supabase
       .from("game_mappings")
       .insert({
-        source: tx.source,
+        // Not scoped to a platform — a rule learned from one source's
+        // listing applies wherever that title/SKU shows up.
+        source: "any",
         match_field: matchField,
         match_type: matchType,
         match_pattern: matchPattern,
@@ -63,13 +65,13 @@ export async function resolveReviewRow(runId: string, transactionId: string, for
 
   if (saveAsRule) {
     // Apply the new rule to every other still-unreviewed row in this run
-    // that it also matches, so one review action can clear several rows.
+    // that it also matches (any source), so one review action can clear
+    // several rows at once.
     const { data: otherUnreviewed } = await supabase
       .from("transactions")
       .select("id, raw_title, raw_sku, source")
       .eq("royalty_run_id", runId)
       .eq("needs_review", true)
-      .eq("source", tx.source)
       .neq("id", transactionId);
 
     const matchingIds = (otherUnreviewed ?? [])

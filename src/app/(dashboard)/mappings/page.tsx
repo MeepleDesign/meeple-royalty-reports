@@ -8,7 +8,7 @@ export default async function MappingsPage() {
   const { data: mappings, error } = await supabase
     .from("game_mappings")
     .select("*, publishers(name)")
-    .order("source")
+    .order("game_name")
     .order("priority", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -28,7 +28,6 @@ export default async function MappingsPage() {
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 text-left text-neutral-500">
             <tr>
-              <th className="px-4 py-2">Source</th>
               <th className="px-4 py-2">Match</th>
               <th className="px-4 py-2">Game</th>
               <th className="px-4 py-2">Publisher</th>
@@ -39,7 +38,6 @@ export default async function MappingsPage() {
           <tbody className="divide-y divide-neutral-100">
             {(mappings ?? []).map((m) => (
               <tr key={m.id}>
-                <td className="px-4 py-2 capitalize">{m.source}</td>
                 <td className="px-4 py-2">
                   <span className="text-neutral-400">{m.match_type === "exact" ? "=" : "⊃"}</span>{" "}
                   {m.match_pattern}
@@ -57,7 +55,7 @@ export default async function MappingsPage() {
             ))}
             {(mappings ?? []).length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-neutral-400">
                   No mappings yet.
                 </td>
               </tr>
