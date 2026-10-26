@@ -29,6 +29,19 @@ export async function writeValues(
   });
 }
 
+export async function clearValues(sheets: sheets_v4.Sheets, spreadsheetId: string, tabTitle: string): Promise<void> {
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `'${tabTitle}'!A1:ZZ` });
+}
+
+export async function readValues(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  tabTitle: string
+): Promise<string[][]> {
+  const { data } = await sheets.spreadsheets.values.get({ spreadsheetId, range: `'${tabTitle}'!A1:ZZ` });
+  return (data.values as string[][] | undefined) ?? [];
+}
+
 export function spreadsheetUrl(spreadsheetId: string): string {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 }

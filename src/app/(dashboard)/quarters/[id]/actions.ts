@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireOwner } from "@/lib/supabase/server-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSourceCsv, type FieldMapping } from "@/lib/parsers/generic";
@@ -11,6 +12,7 @@ export async function uploadFiles(runId: string, source: "etsy" | "shopify" | "r
   await requireOwner();
   const supabase = createServiceClient();
   const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+  let unresolvedThisUpload = 0;
 
   if (files.length === 0) {
     throw new Error("No file selected");
@@ -39,6 +41,7 @@ export async function uploadFiles(runId: string, source: "etsy" | "shopify" | "r
     const text = await file.text();
     const { rows } = parseSourceCsv(source, text, fieldMapping);
     const resolved = resolveAll(rows, (mappings ?? []) as GameMapping[]);
+    unresolvedThisUpload += resolved.filter((r) => r.needsReview).length;
 
     const { data: upload, error: uploadError } = await supabase
       .from("uploads")
@@ -74,6 +77,13 @@ export async function uploadFiles(runId: string, source: "etsy" | "shopify" | "r
   }
 
   revalidatePath(`/quarters/${runId}`);
+
+  // Stop and force the unmatched rows to be resolved right away, rather
+  // than silently leaving them for later — the review screen is the
+  // "pause and ask for the missing details" step.
+  if (unresolvedThisUpload > 0) {
+    redirect(`/quarters/${runId}/review`);
+  }
 }
 
 export async function addManualRow(runId: string, formData: FormData) {

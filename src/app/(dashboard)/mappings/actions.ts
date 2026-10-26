@@ -61,3 +61,12 @@ export async function deleteMapping(mappingId: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/mappings");
 }
+
+/** Deletes every mapping — "start over" button. Doesn't touch publishers or past transactions. */
+export async function deleteAllMappings() {
+  await requireOwner();
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("game_mappings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (error) throw new Error(error.message);
+  revalidatePath("/mappings");
+}

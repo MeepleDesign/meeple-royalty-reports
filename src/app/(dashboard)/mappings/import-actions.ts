@@ -4,64 +4,11 @@ import Papa from "papaparse";
 import { revalidatePath } from "next/cache";
 import { requireOwner } from "@/lib/supabase/server-auth";
 import { createServiceClient } from "@/lib/supabase/server";
+import { processMappingRow, type RowImportResult } from "@/lib/mapping/row-import";
 
-export interface ImportResult {
-  imported: number;
-  errors: { row: number; message: string }[];
+export interface ImportResult extends RowImportResult {
   detectedColumns: string[];
   parseWarnings: string[];
-  createdPublishers: string[];
-}
-
-const FALSY = new Set(["no", "n", "false", "0"]);
-
-// Mappings aren't scoped to a platform — a title match should apply wherever
-// that listing appears, not just the source it happened to be noticed on.
-const COLUMN_ALIASES: Record<string, string[]> = {
-  match_field: ["match field", "match_field", "matchfield", "field", "match"],
-  match_type: ["match type", "match_type", "matchtype"],
-  match_pattern: ["match pattern", "match_pattern", "pattern", "match text", "search term", "keyword", "text"],
-  game_name: ["game name", "game_name", "game", "board game", "boardgame"],
-  publisher_name: ["publisher name", "publisher_name", "publisher"],
-  royalty_applicable: ["royalty applicable", "royalty_applicable", "royalty"],
-  product_type_override: ["product type override", "product_type_override", "product type", "product_type"],
-  priority: ["priority"],
-  notes: ["notes", "note"],
-};
-
-function normalizeKey(key: string): string {
-  return key
-    .replace(/^﻿/, "") // strip a UTF-8 BOM, common from Excel exports
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-/**
- * Tries an exact alias match first; if none of the row's columns exactly
- * match an alias, falls back to "does this column's normalized name
- * contain the alias" (e.g. a column literally called "Search Pattern"
- * still satisfies the "pattern" alias for match_pattern).
- */
-function findValue(row: Record<string, string>, field: keyof typeof COLUMN_ALIASES): string | undefined {
-  const normalizedRow = Object.entries(row).map(([k, v]) => [normalizeKey(k), v] as const);
-  const aliases = COLUMN_ALIASES[field];
-
-  for (const alias of aliases) {
-    const match = normalizedRow.find(([k]) => k === normalizeKey(alias));
-    if (match && match[1]?.trim()) return match[1].trim();
-  }
-  for (const alias of aliases) {
-    const normalizedAlias = normalizeKey(alias);
-    const match = normalizedRow.find(([k]) => k.includes(normalizedAlias));
-    if (match && match[1]?.trim()) return match[1].trim();
-  }
-  return undefined;
-}
-
-function missingFieldMessage(field: keyof typeof COLUMN_ALIASES, label: string): string {
-  return `Missing ${label} — looked for a column named one of: ${COLUMN_ALIASES[field].join(", ")} (check the "Detected columns" list below to see what was actually read from your file)`;
 }
 
 export async function importMappingsCsv(_prev: ImportResult | null, formData: FormData): Promise<ImportResult> {
@@ -72,6 +19,7 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
   if (!(file instanceof File) || file.size === 0) {
     return {
       imported: 0,
+      updated: 0,
       errors: [{ row: 0, message: "No file selected" }],
       detectedColumns: [],
       parseWarnings: [],
@@ -92,113 +40,14 @@ export async function importMappingsCsv(_prev: ImportResult | null, formData: Fo
 
   const { data: publishers } = await supabase.from("publishers").select("id, name");
   const publisherByName = new Map((publishers ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
-  const createdPublishers: string[] = [];
 
-  const errors: ImportResult["errors"] = [];
-  const toInsert: Record<string, unknown>[] = [];
-  let fallbackPatternCount = 0;
+  const result: RowImportResult = { imported: 0, updated: 0, errors: [], createdPublishers: [] };
 
   for (const [index, row] of parsed.data.entries()) {
-    const rowNumber = index + 2;
-
-    let matchPattern = findValue(row, "match_pattern");
-    let gameName = findValue(row, "game_name");
-    const publisherName = findValue(row, "publisher_name");
-
-    // Many spreadsheets use a single descriptive column for both "the game"
-    // and "the text to match the listing on" — if only one of the two is
-    // present, use it for both rather than failing the row. Counted once
-    // for a summary line rather than logged per row (every row in a file
-    // with no dedicated pattern column would otherwise repeat the same
-    // message, which reads like a wall of errors rather than one fact).
-    if (!matchPattern && gameName) {
-      matchPattern = gameName;
-      fallbackPatternCount += 1;
-    } else if (!gameName && matchPattern) {
-      gameName = matchPattern;
-    }
-
-    if (!matchPattern) {
-      errors.push({ row: rowNumber, message: missingFieldMessage("match_pattern", "match pattern") });
-      continue;
-    }
-    if (!gameName) {
-      errors.push({ row: rowNumber, message: missingFieldMessage("game_name", "game name") });
-      continue;
-    }
-    if (!publisherName) {
-      errors.push({ row: rowNumber, message: missingFieldMessage("publisher_name", "publisher name") });
-      continue;
-    }
-
-    let publisherId = publisherByName.get(publisherName.toLowerCase());
-    if (!publisherId) {
-      const { data: newPublisher, error: createError } = await supabase
-        .from("publishers")
-        .insert({ name: publisherName })
-        .select("id")
-        .single();
-      if (createError || !newPublisher) {
-        errors.push({ row: rowNumber, message: `Could not create publisher "${publisherName}": ${createError?.message}` });
-        continue;
-      }
-      publisherId = newPublisher.id;
-      publisherByName.set(publisherName.toLowerCase(), publisherId);
-      createdPublishers.push(publisherName);
-    }
-
-    const matchFieldRaw = findValue(row, "match_field")?.toLowerCase() ?? "title";
-    if (matchFieldRaw !== "title" && matchFieldRaw !== "sku") {
-      errors.push({ row: rowNumber, message: `Unknown match field "${matchFieldRaw}" (expected title/sku)` });
-      continue;
-    }
-
-    const matchTypeRaw = findValue(row, "match_type")?.toLowerCase() ?? "contains";
-    if (matchTypeRaw !== "exact" && matchTypeRaw !== "contains") {
-      errors.push({ row: rowNumber, message: `Unknown match type "${matchTypeRaw}" (expected exact/contains)` });
-      continue;
-    }
-
-    const royaltyRaw = findValue(row, "royalty_applicable")?.toLowerCase();
-    const royaltyApplicable = royaltyRaw === undefined ? true : FALSY.has(royaltyRaw) ? false : true;
-
-    const priorityRaw = findValue(row, "priority");
-    const priority = priorityRaw ? parseInt(priorityRaw, 10) || 0 : 0;
-
-    toInsert.push({
-      source: "any",
-      match_field: matchFieldRaw,
-      match_type: matchTypeRaw,
-      match_pattern: matchPattern,
-      game_name: gameName,
-      publisher_id: publisherId,
-      royalty_applicable: royaltyApplicable,
-      product_type_override: findValue(row, "product_type_override") ?? null,
-      priority,
-      notes: findValue(row, "notes") ?? null,
-    });
-  }
-
-  if (fallbackPatternCount > 0) {
-    parseWarnings.push(
-      `${fallbackPatternCount} row(s) had no separate match pattern column, so the game name column's value was used for both.`
-    );
-  }
-
-  if (toInsert.length > 0) {
-    const { error } = await supabase.from("game_mappings").insert(toInsert);
-    if (error) {
-      return {
-        imported: 0,
-        errors: [...errors, { row: 0, message: error.message }],
-        detectedColumns,
-        parseWarnings,
-        createdPublishers,
-      };
-    }
+    await processMappingRow(supabase, row, index + 2, publisherByName, result);
   }
 
   revalidatePath("/mappings");
   revalidatePath("/publishers");
-  return { imported: toInsert.length, errors, detectedColumns, parseWarnings, createdPublishers };
+  return { ...result, detectedColumns, parseWarnings };
 }

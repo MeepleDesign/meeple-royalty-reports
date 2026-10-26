@@ -3,7 +3,14 @@
 import { useActionState } from "react";
 import { importMappingsCsv, type ImportResult } from "./import-actions";
 
-const initialState: ImportResult = { imported: 0, errors: [], detectedColumns: [], parseWarnings: [], createdPublishers: [] };
+const initialState: ImportResult = {
+  imported: 0,
+  updated: 0,
+  errors: [],
+  detectedColumns: [],
+  parseWarnings: [],
+  createdPublishers: [],
+};
 
 export function ImportMappingsForm() {
   const [state, formAction, pending] = useActionState(importMappingsCsv, initialState);
@@ -13,8 +20,7 @@ export function ImportMappingsForm() {
     <div className="card space-y-3">
       <div className="font-medium text-sm text-neutral-700">Bulk import from CSV</div>
       <p className="text-xs text-neutral-500">
-        Columns (any order, flexible naming): <code>Source</code> (etsy/shopify/redbubble/manual/any,
-        defaults to any), <code>Match Field</code> (title/sku, defaults to title), <code>Match Type</code>{" "}
+        Columns (any order, flexible naming): <code>Match Field</code> (title/sku, defaults to title), <code>Match Type</code>{" "}
         (exact/contains, defaults to contains), <code>Match Pattern</code> (required), <code>Game Name</code>{" "}
         (required), <code>Publisher Name</code> (required — must already exist under Publishers),{" "}
         <code>Royalty Applicable</code> (yes/no, defaults to yes), <code>Product Type Override</code>,{" "}

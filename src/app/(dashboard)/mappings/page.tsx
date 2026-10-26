@@ -1,10 +1,19 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ImportMappingsForm } from "./ImportMappingsForm";
+import { SheetSyncControls } from "./SheetSyncControls";
+import { deleteMapping, deleteAllMappings } from "./actions";
 
+export const dynamic = "force-dynamic";
 
-export default async function MappingsPage() {
+export default async function MappingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const supabase = createServiceClient();
+
   const { data: mappings, error } = await supabase
     .from("game_mappings")
     .select("*, publishers(name)")
@@ -13,16 +22,53 @@ export default async function MappingsPage() {
 
   if (error) throw new Error(error.message);
 
+  const needle = q?.trim().toLowerCase();
+  const results = needle
+    ? (mappings ?? []).filter(
+        (m) =>
+          m.game_name?.toLowerCase().includes(needle) ||
+          m.match_pattern?.toLowerCase().includes(needle) ||
+          m.notes?.toLowerCase().includes(needle) ||
+          m.publishers?.name?.toLowerCase().includes(needle)
+      )
+    : mappings ?? [];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-neutral-900">Board Game Publisher Mapping</h1>
-        <Link href="/mappings/new" className="btn-primary">
-          New mapping
-        </Link>
+        <div className="flex items-center gap-3">
+          <form action={deleteAllMappings}>
+            <button type="submit" className="btn-danger">
+              Delete all
+            </button>
+          </form>
+          <Link href="/mappings/new" className="btn-primary">
+            New mapping
+          </Link>
+        </div>
       </div>
 
       <ImportMappingsForm />
+      <SheetSyncControls />
+
+      <form method="get" className="flex items-center gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Search game, publisher, pattern, notes…"
+          className="input max-w-sm"
+        />
+        <button type="submit" className="btn-secondary">
+          Search
+        </button>
+        {q && (
+          <Link href="/mappings" className="text-sm text-neutral-500 hover:underline">
+            Clear
+          </Link>
+        )}
+      </form>
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
@@ -36,7 +82,7 @@ export default async function MappingsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {(mappings ?? []).map((m) => (
+            {results.map((m) => (
               <tr key={m.id}>
                 <td className="px-4 py-2">
                   <span className="text-neutral-400">{m.match_type === "exact" ? "=" : "⊃"}</span>{" "}
@@ -46,17 +92,22 @@ export default async function MappingsPage() {
                 <td className="px-4 py-2">{m.game_name}</td>
                 <td className="px-4 py-2">{m.publishers?.name ?? "—"}</td>
                 <td className="px-4 py-2">{m.royalty_applicable ? "Yes" : "No"}</td>
-                <td className="px-4 py-2 text-right">
-                  <Link href={`/mappings/${m.id}`} className="text-neutral-600 hover:underline">
+                <td className="px-4 py-2 text-right whitespace-nowrap">
+                  <Link href={`/mappings/${m.id}`} className="text-neutral-600 hover:underline mr-3">
                     Edit
                   </Link>
+                  <form action={deleteMapping.bind(null, m.id)} className="inline">
+                    <button type="submit" className="btn-danger">
+                      Delete
+                    </button>
+                  </form>
                 </td>
               </tr>
             ))}
-            {(mappings ?? []).length === 0 && (
+            {results.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-neutral-400">
-                  No mappings yet.
+                  {q ? "No mappings match your search." : "No mappings yet."}
                 </td>
               </tr>
             )}
