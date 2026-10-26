@@ -67,6 +67,9 @@ export async function uploadFiles(runId: string, source: "etsy" | "shopify" | "r
           units_sold: r.unitsSold,
           unit_net: r.unitNet,
           total_net: r.totalNet,
+          order_no: r.orderNo ?? null,
+          ship_to_country: r.shipToCountry ?? null,
+          sale_source: r.saleSource,
           royalty_applicable: r.royaltyApplicable,
           mapping_id: r.mappingId,
           needs_review: r.needsReview,
@@ -94,6 +97,7 @@ export async function addManualRow(runId: string, formData: FormData) {
   const unitsSold = parseFloat(String(formData.get("units_sold") || "1"));
   const totalNet = parseFloat(String(formData.get("total_net") || "0"));
   const publisherId = String(formData.get("publisher_id") || "") || null;
+  const saleSource = String(formData.get("sale_source") || "").trim() || "Manual";
 
   const { error } = await supabase.from("transactions").insert({
     royalty_run_id: runId,
@@ -108,6 +112,9 @@ export async function addManualRow(runId: string, formData: FormData) {
     units_sold: unitsSold,
     unit_net: unitsSold > 0 ? totalNet / unitsSold : totalNet,
     total_net: totalNet,
+    order_no: String(formData.get("order_no") || "").trim() || null,
+    ship_to_country: String(formData.get("ship_to_country") || "").trim() || null,
+    sale_source: saleSource,
     royalty_applicable: royaltyApplicable,
     needs_review: !publisherId,
   });

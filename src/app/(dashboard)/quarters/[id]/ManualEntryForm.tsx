@@ -39,6 +39,7 @@ export function ManualEntryForm({
       <div className="font-medium text-sm text-neutral-700">Manual entry (4th source)</div>
       <form action={action} className="grid grid-cols-4 gap-3">
         <input name="sale_date" type="date" required className="input" />
+        <input name="sale_source" placeholder="Sale source (e.g. Trade Show)" defaultValue="Manual" className="input" />
         <input name="game_name" placeholder="Game" required className="input" />
         <select name="publisher_id" required className="input">
           <option value="">Publisher…</option>
@@ -80,6 +81,8 @@ export function ManualEntryForm({
           className="input"
         />
         <input name="listing_description" placeholder="Listing description" required className="input col-span-2" />
+        <input name="order_no" placeholder="Order no. (optional)" className="input" />
+        <input name="ship_to_country" placeholder="Ship to country (optional)" className="input" />
 
         <input
           name="units_sold"

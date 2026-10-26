@@ -3,7 +3,17 @@
 import { useState } from "react";
 import Papa from "papaparse";
 
-type FieldKey = "sale_date" | "title" | "sku" | "variant" | "product_type" | "units_sold" | "total_net" | "status";
+type FieldKey =
+  | "sale_date"
+  | "title"
+  | "sku"
+  | "variant"
+  | "product_type"
+  | "units_sold"
+  | "total_net"
+  | "status"
+  | "order_no"
+  | "ship_to_country";
 
 const FIELDS: { key: FieldKey; label: string; required: boolean }[] = [
   { key: "sale_date", label: "Sale date", required: true },
@@ -14,6 +24,8 @@ const FIELDS: { key: FieldKey; label: string; required: boolean }[] = [
   { key: "variant", label: "Variant (optional)", required: false },
   { key: "product_type", label: "Product type (optional — only if the source has its own column for it)", required: false },
   { key: "status", label: "Order status (optional — used to exclude cancelled/refunded/pending orders)", required: false },
+  { key: "order_no", label: "Order number (optional)", required: false },
+  { key: "ship_to_country", label: "Ship to country (optional)", required: false },
 ];
 
 export function SourceMappingForm({

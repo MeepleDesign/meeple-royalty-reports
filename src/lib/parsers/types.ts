@@ -21,6 +21,10 @@ export interface StandardRow {
   unitsSold: number;
   unitNet: number;
   totalNet: number;
+  orderNo?: string;
+  shipToCountry?: string;
+  /** Display label for the Sale Source column — "Etsy"/"Shopify"/"Redbubble", or a free-text value for manual rows. */
+  saleSource: string;
 }
 
 export interface ParseWarning {

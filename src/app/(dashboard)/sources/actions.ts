@@ -4,7 +4,18 @@ import { revalidatePath } from "next/cache";
 import { requireOwner } from "@/lib/supabase/server-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
-const FIELDS = ["sale_date", "title", "sku", "variant", "product_type", "units_sold", "total_net", "status"] as const;
+const FIELDS = [
+  "sale_date",
+  "title",
+  "sku",
+  "variant",
+  "product_type",
+  "units_sold",
+  "total_net",
+  "status",
+  "order_no",
+  "ship_to_country",
+] as const;
 
 export async function saveSourceMapping(source: "etsy" | "shopify" | "redbubble", formData: FormData) {
   await requireOwner();

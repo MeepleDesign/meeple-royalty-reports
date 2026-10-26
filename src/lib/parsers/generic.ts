@@ -12,6 +12,8 @@ export interface FieldMapping {
   units_sold: string;
   total_net: string;
   status?: string;
+  order_no?: string;
+  ship_to_country?: string;
 }
 
 const DATE_PARSERS: Record<Source, (raw: string) => string> = {
@@ -19,6 +21,12 @@ const DATE_PARSERS: Record<Source, (raw: string) => string> = {
   shopify: parseShopifyDate,
   redbubble: parseRedbubbleDate,
   manual: (raw) => raw,
+};
+
+const SALE_SOURCE_LABELS: Record<"etsy" | "shopify" | "redbubble", string> = {
+  etsy: "Etsy",
+  shopify: "Shopify",
+  redbubble: "Redbubble",
 };
 
 // Order statuses excluded from royalty totals when a `status` column is mapped
@@ -94,6 +102,9 @@ export function parseSourceCsv(
       unitsSold,
       unitNet: unitsSold > 0 ? totalNet / unitsSold : totalNet,
       totalNet,
+      orderNo: mapping.order_no ? raw[mapping.order_no]?.trim() || undefined : undefined,
+      shipToCountry: mapping.ship_to_country ? raw[mapping.ship_to_country]?.trim() || undefined : undefined,
+      saleSource: SALE_SOURCE_LABELS[source],
     });
   });
 

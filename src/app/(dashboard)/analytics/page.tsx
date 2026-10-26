@@ -55,7 +55,79 @@ export default async function AnalyticsPage({
       <RankedTable title="Revenue by source" rows={bySource} total={totalRevenue} />
       <RankedTable title="Revenue by product type" rows={byProductType} total={totalRevenue} />
       <RankedTable title="Top games" rows={byGame} total={totalRevenue} limit={15} />
+
+      <ProductTypeBySourceBreakdown rows={rows} />
     </div>
+  );
+}
+
+/**
+ * Internal-only: the real amount actually charged (total_net), broken
+ * down by product type and source — this is the figure deliberately kept
+ * off the publisher-facing Sheet (which shows a standard "Item Total"
+ * from the pricing lookup instead), so it lives here for your own eyes.
+ */
+function ProductTypeBySourceBreakdown({
+  rows,
+}: {
+  rows: { product_type: string | null; sale_source: string | null; source: string; total_net: number }[];
+}) {
+  const sources = Array.from(new Set(rows.map((r) => r.sale_source ?? r.source))).sort();
+  const byProductType = new Map<string, Map<string, number>>();
+
+  for (const row of rows) {
+    const productType = row.product_type ?? "Unknown";
+    const source = row.sale_source ?? row.source;
+    const bySource = byProductType.get(productType) ?? new Map<string, number>();
+    bySource.set(source, (bySource.get(source) ?? 0) + Number(row.total_net));
+    byProductType.set(productType, bySource);
+  }
+
+  const productTypes = Array.from(byProductType.keys()).sort();
+
+  return (
+    <details className="card p-0 overflow-hidden">
+      <summary className="px-4 py-3 border-b border-neutral-100 font-medium text-sm text-neutral-700 cursor-pointer">
+        Internal: actual charged amount by product type &amp; source (not shown to publishers)
+      </summary>
+      <table className="w-full text-sm">
+        <thead className="bg-neutral-50 text-left text-neutral-500">
+          <tr>
+            <th className="px-4 py-2">Product type</th>
+            {sources.map((s) => (
+              <th key={s} className="px-4 py-2 capitalize">
+                {s}
+              </th>
+            ))}
+            <th className="px-4 py-2">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-neutral-100">
+          {productTypes.map((pt) => {
+            const bySource = byProductType.get(pt)!;
+            const rowTotal = sum(Array.from(bySource.values()));
+            return (
+              <tr key={pt}>
+                <td className="px-4 py-2 font-medium text-neutral-900">{pt}</td>
+                {sources.map((s) => (
+                  <td key={s} className="px-4 py-2">
+                    {bySource.has(s) ? `£${bySource.get(s)!.toFixed(2)}` : "—"}
+                  </td>
+                ))}
+                <td className="px-4 py-2 font-medium">£{rowTotal.toFixed(2)}</td>
+              </tr>
+            );
+          })}
+          {productTypes.length === 0 && (
+            <tr>
+              <td colSpan={sources.length + 2} className="px-4 py-6 text-center text-neutral-400">
+                No data.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </details>
   );
 }
 

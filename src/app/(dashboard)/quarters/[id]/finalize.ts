@@ -11,24 +11,25 @@ import { computePublisherBalance, type PublisherSettings } from "@/lib/royalty/e
 import type { ResolvedRow } from "@/lib/mapping/resolve";
 import { nextQuarter, quarterLabel } from "@/lib/royalty/quarter";
 
-const STANDARD_HEADERS = [
+// Publisher-facing sheet — deliberately does NOT include the real NET
+// total Meeple Design actually received (that stays internal to the
+// Summary tab's royalty math and the Analytics page). "Item Total" here
+// is looked up from the Standard Pricing table by product type + variant,
+// not the actual sale amount, so marketplace discounts/fees never show.
+const SALES_HEADERS = [
   "Date",
+  "Sale Source",
   "Game",
   "Publisher",
   "Product",
   "Listing Description",
   "Variant",
+  "Order No",
+  "Ship To Country",
   "Units Sold",
-  "Unit NET GBP",
-  "Total NET GBP",
+  "Item Total",
+  "Currency",
 ];
-
-const SOURCE_TAB_TITLES: Record<string, string> = {
-  etsy: "Etsy",
-  shopify: "Shopify",
-  redbubble: "Redbubble",
-  manual: "Manual",
-};
 
 interface PublisherRow {
   name: string;
@@ -52,12 +53,19 @@ interface TransactionRow {
   units_sold: number;
   unit_net: number | null;
   total_net: number;
+  order_no: string | null;
+  ship_to_country: string | null;
+  sale_source: string | null;
   royalty_applicable: boolean | null;
   mapping_id: string | null;
 }
 
 interface TransactionWithPublisher extends TransactionRow {
   publishers: PublisherRow;
+}
+
+function priceLookupKey(productType: string | null, variant: string | null): string {
+  return `${(productType ?? "").trim().toLowerCase()}|${(variant ?? "").trim().toLowerCase()}`;
 }
 
 export async function finalizeQuarter(runId: string) {
@@ -80,13 +88,14 @@ export async function finalizeQuarter(runId: string) {
     throw new Error(`${reviewCount} row(s) still need review before you can finalize this quarter.`);
   }
 
-  const { data: txRowsRaw, error: txError } = await supabase
-    .from("transactions")
-    .select("*, publishers(*)")
-    .eq("royalty_run_id", runId)
-    .not("publisher_id", "is", null);
+  const [{ data: txRowsRaw, error: txError }, { data: prices }] = await Promise.all([
+    supabase.from("transactions").select("*, publishers(*)").eq("royalty_run_id", runId).not("publisher_id", "is", null),
+    supabase.from("product_prices").select("product_type, variant, unit_net"),
+  ]);
   if (txError) throw new Error(txError.message);
   const txRows = (txRowsRaw ?? []) as TransactionWithPublisher[];
+
+  const priceByKey = new Map((prices ?? []).map((p) => [priceLookupKey(p.product_type, p.variant), Number(p.unit_net)]));
 
   const byPublisher = new Map<string, TransactionWithPublisher[]>();
   for (const row of txRows) {
@@ -116,32 +125,32 @@ export async function finalizeQuarter(runId: string) {
     const resolvedRows = rows.map(toResolvedRow);
     const balance = computePublisherBalance(settings, { year: run.year, quarter: run.quarter }, resolvedRows, carriedIn);
 
-    const tabsPresent = Array.from(new Set(rows.map((r) => SOURCE_TAB_TITLES[r.source])));
-    const tabTitles = [...tabsPresent, "Summary"];
-
     const spreadsheetId = await createSpreadsheetWithTabs(
       sheets,
       `${publisher.name} - ${label} Royalty Report`,
-      tabTitles
+      ["Sales", "Summary"]
     );
 
-    for (const sourceKey of Object.keys(SOURCE_TAB_TITLES)) {
-      const tabTitle = SOURCE_TAB_TITLES[sourceKey];
-      if (!tabsPresent.includes(tabTitle)) continue;
-      const sourceRows = rows.filter((r) => r.source === sourceKey);
-      const dataRows = sourceRows.map((r) => [
+    const sortedRows = [...rows].sort((a, b) => a.sale_date.localeCompare(b.sale_date));
+    const salesData = sortedRows.map((r) => {
+      const unitPrice = priceByKey.get(priceLookupKey(r.product_type, r.variant));
+      const itemTotal = unitPrice !== undefined ? unitPrice * Number(r.units_sold) : "";
+      return [
         r.sale_date,
+        r.sale_source ?? r.source,
         r.game_name ?? "",
         publisher.name,
         r.product_type ?? "",
         r.listing_description,
         r.variant ?? "",
+        r.order_no ?? "",
+        r.ship_to_country ?? "",
         Number(r.units_sold),
-        Number(r.unit_net ?? 0),
-        Number(r.total_net),
-      ]);
-      await writeValues(sheets, spreadsheetId, tabTitle, [STANDARD_HEADERS, ...dataRows]);
-    }
+        itemTotal,
+        "GBP",
+      ];
+    });
+    await writeValues(sheets, spreadsheetId, "Sales", [SALES_HEADERS, ...salesData]);
 
     await writeValues(sheets, spreadsheetId, "Summary", [
       ["Publisher", publisher.name],
@@ -237,6 +246,7 @@ function toResolvedRow(row: TransactionRow): ResolvedRow {
     unitsSold: Number(row.units_sold),
     unitNet: Number(row.unit_net ?? 0),
     totalNet: Number(row.total_net),
+    saleSource: row.sale_source ?? row.source,
     gameName: row.game_name,
     publisherId: row.publisher_id,
     royaltyApplicable: row.royalty_applicable,
