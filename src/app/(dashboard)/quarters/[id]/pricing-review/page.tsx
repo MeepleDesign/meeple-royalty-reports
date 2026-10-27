@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { findMissingPriceCombos } from "@/lib/pricing/gaps";
-import { addMissingPrice } from "./actions";
+import { addMissingPrice, mapGapToExistingProduct } from "./actions";
 
 export default async function PricingReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: runId } = await params;
   const supabase = createServiceClient();
   const gaps = await findMissingPriceCombos(supabase, runId);
+  const { data: existingPrices } = await supabase
+    .from("product_prices")
+    .select("product_type, variant")
+    .order("product_type")
+    .order("variant");
 
   return (
     <div className="space-y-6">
@@ -38,6 +43,36 @@ export default async function PricingReviewPage({ params }: { params: Promise<{ 
                 Save price
               </button>
             </form>
+
+            {(existingPrices ?? []).length > 0 && (
+              <form
+                action={mapGapToExistingProduct.bind(null, runId)}
+                className="flex items-end gap-3 mt-3 pt-3 border-t border-neutral-100"
+              >
+                <input type="hidden" name="raw_product_type" value={gap.productType} />
+                <input type="hidden" name="raw_variant" value={gap.variant ?? ""} />
+                <div className="space-y-1">
+                  <label className="text-xs text-neutral-500 block">
+                    …or this is actually the same as
+                  </label>
+                  <select name="canonical" required className="input">
+                    <option value="">Choose an existing priced product…</option>
+                    {(existingPrices ?? []).map((p) => (
+                      <option
+                        key={`${p.product_type}|${p.variant ?? ""}`}
+                        value={`${p.product_type}||${p.variant ?? ""}`}
+                      >
+                        {p.product_type}
+                        {p.variant ? ` — ${p.variant}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" className="btn-secondary">
+                  Map &amp; re-apply
+                </button>
+              </form>
+            )}
           </div>
         ))}
 

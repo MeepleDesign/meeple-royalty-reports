@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { deleteNormalisation } from "./actions";
+import { ImportNormalisationForm } from "./ImportNormalisationForm";
+import { SheetSyncControls } from "./SheetSyncControls";
+import { getCurrentNormalisationSheetLink } from "./sheet-actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function NormalisationPage() {
   const supabase = createServiceClient();
+  const currentSheet = await getCurrentNormalisationSheetLink();
   const { data: rules, error } = await supabase
     .from("product_normalizations")
     .select("*")
@@ -30,6 +34,9 @@ export default async function NormalisationPage() {
           New rule
         </Link>
       </div>
+
+      <ImportNormalisationForm />
+      <SheetSyncControls current={currentSheet} />
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
