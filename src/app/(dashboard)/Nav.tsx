@@ -7,6 +7,7 @@ const links = [
   { href: "/mappings", label: "Publisher Mapping" },
   { href: "/sources", label: "Sources" },
   { href: "/prices", label: "Prices" },
+  { href: "/normalization", label: "Normalization" },
   { href: "/analytics", label: "Analytics" },
   { href: "/email", label: "Email" },
 ];

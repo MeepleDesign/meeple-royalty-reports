@@ -5,6 +5,7 @@ import { uploadFiles, addManualRow, deleteUpload } from "./actions";
 import { finalizeQuarter } from "./finalize";
 import { quarterLabel } from "@/lib/royalty/quarter";
 import { ManualEntryForm } from "./ManualEntryForm";
+import { ReapplyNormalizationButton } from "./ReapplyNormalizationButton";
 import { findMissingPriceCombos } from "@/lib/pricing/gaps";
 
 export default async function QuarterPage({ params }: { params: Promise<{ id: string }> }) {
@@ -97,11 +98,12 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
           </div>
 
           {missingPrices.length > 0 && (
-            <div className="card">
+            <div className="card flex items-center justify-between">
               <Link href={`/quarters/${runId}/pricing-review`} className="text-amber-700 font-medium hover:underline">
                 {missingPrices.length} product/variant combo(s) have no standard price — their Item
                 Total will be blank on the report unless you add one →
               </Link>
+              <ReapplyNormalizationButton runId={runId} />
             </div>
           )}
 
