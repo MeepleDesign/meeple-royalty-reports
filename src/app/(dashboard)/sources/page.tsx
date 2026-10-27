@@ -5,14 +5,18 @@ import { saveSourceMapping } from "./actions";
 export const dynamic = "force-dynamic";
 
 const SOURCES = ["etsy", "shopify", "redbubble"] as const;
+const REQUIRED_FIELDS = ["sale_date", "title", "units_sold", "total_net"];
 
 export default async function SourcesPage() {
   const supabase = createServiceClient();
   const { data: rows } = await supabase.from("source_field_mappings").select("*");
 
   const bySource: Record<string, Record<string, string>> = { etsy: {}, shopify: {}, redbubble: {} };
+  const lastUpdatedBySource: Record<string, string | null> = { etsy: null, shopify: null, redbubble: null };
   for (const row of rows ?? []) {
     bySource[row.source][row.standard_field] = row.source_column;
+    const current = lastUpdatedBySource[row.source];
+    if (!current || row.updated_at > current) lastUpdatedBySource[row.source] = row.updated_at;
   }
 
   return (
@@ -25,14 +29,19 @@ export default async function SourcesPage() {
         </p>
       </div>
 
-      {SOURCES.map((source) => (
-        <SourceMappingForm
-          key={source}
-          source={source}
-          initial={bySource[source]}
-          action={saveSourceMapping.bind(null, source)}
-        />
-      ))}
+      {SOURCES.map((source) => {
+        const isMapped = REQUIRED_FIELDS.every((f) => bySource[source][f]);
+        return (
+          <SourceMappingForm
+            key={source}
+            source={source}
+            initial={bySource[source]}
+            isMapped={isMapped}
+            lastUpdated={lastUpdatedBySource[source]}
+            action={saveSourceMapping.bind(null, source)}
+          />
+        );
+      })}
     </div>
   );
 }

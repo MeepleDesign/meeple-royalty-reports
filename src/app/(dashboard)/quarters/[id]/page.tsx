@@ -5,6 +5,7 @@ import { uploadFiles, addManualRow, deleteUpload } from "./actions";
 import { finalizeQuarter } from "./finalize";
 import { quarterLabel } from "@/lib/royalty/quarter";
 import { ManualEntryForm } from "./ManualEntryForm";
+import { findMissingPriceCombos } from "@/lib/pricing/gaps";
 
 export default async function QuarterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: runId } = await params;
@@ -17,6 +18,7 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
     { data: publishers },
     { data: balances },
     { data: prices },
+    missingPrices,
   ] = await Promise.all([
     supabase.from("royalty_runs").select("*").eq("id", runId).single(),
     supabase.from("uploads").select("*").eq("royalty_run_id", runId).order("uploaded_at"),
@@ -28,6 +30,7 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
     supabase.from("publishers").select("id, name").order("name"),
     supabase.from("publisher_balances").select("*, publishers(name)").eq("royalty_run_id", runId),
     supabase.from("product_prices").select("id, product_type, variant, unit_net").order("product_type"),
+    findMissingPriceCombos(supabase, runId),
   ]);
 
   if (!run) notFound();
@@ -92,6 +95,15 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
               </tbody>
             </table>
           </div>
+
+          {missingPrices.length > 0 && (
+            <div className="card">
+              <Link href={`/quarters/${runId}/pricing-review`} className="text-amber-700 font-medium hover:underline">
+                {missingPrices.length} product/variant combo(s) have no standard price — their Item
+                Total will be blank on the report unless you add one →
+              </Link>
+            </div>
+          )}
 
           <div className="card flex items-center justify-between">
             <div>

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { importPricesCsv, type ImportResult } from "./import-actions";
 
-const initialState: ImportResult = { imported: 0, errors: [], detectedColumns: [], parseWarnings: [] };
+const initialState: ImportResult = { imported: 0, updated: 0, errors: [], detectedColumns: [], parseWarnings: [] };
 
 export function ImportPricesForm() {
   const [state, formAction, pending] = useActionState(importPricesCsv, initialState);

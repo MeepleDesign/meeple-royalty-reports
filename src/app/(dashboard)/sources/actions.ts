@@ -21,13 +21,14 @@ export async function saveSourceMapping(source: "etsy" | "shopify" | "redbubble"
   await requireOwner();
   const supabase = createServiceClient();
 
-  const toUpsert: { source: string; standard_field: string; source_column: string }[] = [];
+  const now = new Date().toISOString();
+  const toUpsert: { source: string; standard_field: string; source_column: string; updated_at: string }[] = [];
   const toDelete: string[] = [];
 
   for (const field of FIELDS) {
     const value = String(formData.get(field) || "").trim();
     if (value) {
-      toUpsert.push({ source, standard_field: field, source_column: value });
+      toUpsert.push({ source, standard_field: field, source_column: value, updated_at: now });
     } else {
       toDelete.push(field);
     }

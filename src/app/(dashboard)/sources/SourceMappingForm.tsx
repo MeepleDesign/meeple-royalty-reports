@@ -31,10 +31,14 @@ const FIELDS: { key: FieldKey; label: string; required: boolean }[] = [
 export function SourceMappingForm({
   source,
   initial,
+  isMapped,
+  lastUpdated,
   action,
 }: {
   source: string;
   initial: Partial<Record<FieldKey, string>>;
+  isMapped: boolean;
+  lastUpdated: string | null;
   action: (formData: FormData) => void | Promise<void>;
 }) {
   const [headers, setHeaders] = useState<string[]>([]);
@@ -54,7 +58,25 @@ export function SourceMappingForm({
 
   return (
     <div className="card space-y-4">
-      <div className="font-medium text-sm text-neutral-700 capitalize">{source}</div>
+      <div className="flex items-center justify-between">
+        <div className="font-medium text-sm text-neutral-700 capitalize">{source}</div>
+        <div className="flex items-center gap-2 text-xs">
+          {isMapped ? (
+            <span className="text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">
+              Mapped
+            </span>
+          ) : (
+            <span className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+              Not mapped
+            </span>
+          )}
+          {lastUpdated && (
+            <span className="text-neutral-400">
+              Last updated {new Date(lastUpdated).toLocaleString()}
+            </span>
+          )}
+        </div>
+      </div>
 
       <div className="space-y-1">
         <label className="text-xs text-neutral-500 block">

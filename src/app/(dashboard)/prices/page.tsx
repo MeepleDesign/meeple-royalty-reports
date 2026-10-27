@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ImportPricesForm } from "./ImportPricesForm";
+import { SheetSyncControls } from "./SheetSyncControls";
+import { getCurrentPriceSheetLink } from "./sheet-actions";
+import { deletePrice } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PricesPage() {
   const supabase = createServiceClient();
+  const currentSheet = await getCurrentPriceSheetLink();
   const { data: prices, error } = await supabase
     .from("product_prices")
     .select("*")
@@ -30,6 +34,7 @@ export default async function PricesPage() {
       </div>
 
       <ImportPricesForm />
+      <SheetSyncControls current={currentSheet} />
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
@@ -47,10 +52,15 @@ export default async function PricesPage() {
                 <td className="px-4 py-2 font-medium text-neutral-900">{p.product_type}</td>
                 <td className="px-4 py-2">{p.variant ?? "—"}</td>
                 <td className="px-4 py-2">£{Number(p.unit_net).toFixed(2)}</td>
-                <td className="px-4 py-2 text-right">
-                  <Link href={`/prices/${p.id}`} className="text-neutral-600 hover:underline">
+                <td className="px-4 py-2 text-right whitespace-nowrap">
+                  <Link href={`/prices/${p.id}`} className="text-neutral-600 hover:underline mr-3">
                     Edit
                   </Link>
+                  <form action={deletePrice.bind(null, p.id)} className="inline">
+                    <button type="submit" className="btn-danger">
+                      Delete
+                    </button>
+                  </form>
                 </td>
               </tr>
             ))}
