@@ -16,7 +16,7 @@ function parseForm(formData: FormData) {
   };
 }
 
-export async function createNormalization(formData: FormData) {
+export async function createNormalisation(formData: FormData) {
   await requireOwner();
   const supabase = createServiceClient();
   const values = parseForm(formData);
@@ -28,11 +28,11 @@ export async function createNormalization(formData: FormData) {
   const { error } = await supabase.from("product_normalizations").insert(values);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/normalization");
-  redirect("/normalization");
+  revalidatePath("/normalisation");
+  redirect("/normalisation");
 }
 
-export async function updateNormalization(id: string, formData: FormData) {
+export async function updateNormalisation(id: string, formData: FormData) {
   await requireOwner();
   const supabase = createServiceClient();
   const values = parseForm(formData);
@@ -44,14 +44,14 @@ export async function updateNormalization(id: string, formData: FormData) {
   const { error } = await supabase.from("product_normalizations").update(values).eq("id", id);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/normalization");
-  redirect("/normalization");
+  revalidatePath("/normalisation");
+  redirect("/normalisation");
 }
 
-export async function deleteNormalization(id: string) {
+export async function deleteNormalisation(id: string) {
   await requireOwner();
   const supabase = createServiceClient();
   const { error } = await supabase.from("product_normalizations").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  revalidatePath("/normalization");
+  revalidatePath("/normalisation");
 }

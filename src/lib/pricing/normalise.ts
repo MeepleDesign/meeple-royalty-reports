@@ -1,4 +1,4 @@
-export interface NormalizationRule {
+export interface NormalisationRule {
   raw_field: "product_type" | "variant";
   match_type: "exact" | "contains";
   raw_pattern: string;
@@ -6,7 +6,7 @@ export interface NormalizationRule {
   priority: number;
 }
 
-function normalizeText(s: string): string {
+function normaliseText(s: string): string {
   return s.trim().toLowerCase();
 }
 
@@ -17,30 +17,30 @@ function normalizeText(s: string): string {
  * untouched when no rule matches, so this never produces blanks on its
  * own — it only ever makes a match more likely.
  */
-export function applyNormalization(
+export function applyNormalisation(
   field: "product_type" | "variant",
   value: string | undefined,
-  rules: NormalizationRule[]
+  rules: NormalisationRule[]
 ): string | undefined {
   if (!value) return value;
   const candidates = rules
     .filter((r) => r.raw_field === field)
     .filter((r) => {
-      const v = normalizeText(value);
-      const p = normalizeText(r.raw_pattern);
+      const v = normaliseText(value);
+      const p = normaliseText(r.raw_pattern);
       return r.match_type === "exact" ? v === p : v.includes(p);
     })
     .sort((a, b) => b.priority - a.priority || b.raw_pattern.length - a.raw_pattern.length);
   return candidates[0]?.canonical_value ?? value;
 }
 
-export function normalizeProductFields(
+export function normaliseProductFields(
   productType: string | undefined,
   variant: string | undefined,
-  rules: NormalizationRule[]
+  rules: NormalisationRule[]
 ): { productType: string | undefined; variant: string | undefined } {
   return {
-    productType: applyNormalization("product_type", productType, rules),
-    variant: applyNormalization("variant", variant, rules),
+    productType: applyNormalisation("product_type", productType, rules),
+    variant: applyNormalisation("variant", variant, rules),
   };
 }

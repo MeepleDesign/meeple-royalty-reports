@@ -5,7 +5,7 @@ import { findOrCreateFolder } from "./drive";
 /**
  * Ensures Root -> Publisher -> Year -> Quarter exists in Drive, caching
  * folder IDs in publisher_drive_folders so repeat calls (e.g. pre-creating
- * next quarter's folder on finalize) don't re-hit the Drive API.
+ * next quarter's folder on finalise) don't re-hit the Drive API.
  */
 export async function ensurePublisherQuarterFolder(
   drive: drive_v3.Drive,

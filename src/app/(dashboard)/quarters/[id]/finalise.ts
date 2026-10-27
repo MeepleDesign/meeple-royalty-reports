@@ -68,7 +68,7 @@ function priceLookupKey(productType: string | null, variant: string | null): str
   return `${(productType ?? "").trim().toLowerCase()}|${(variant ?? "").trim().toLowerCase()}`;
 }
 
-export async function finalizeQuarter(runId: string) {
+export async function finaliseQuarter(runId: string) {
   await requireOwner();
   const supabase = createServiceClient();
 
@@ -85,7 +85,7 @@ export async function finalizeQuarter(runId: string) {
     .eq("royalty_run_id", runId)
     .eq("needs_review", true);
   if ((reviewCount ?? 0) > 0) {
-    throw new Error(`${reviewCount} row(s) still need review before you can finalize this quarter.`);
+    throw new Error(`${reviewCount} row(s) still need review before you can finalise this quarter.`);
   }
 
   const [{ data: txRowsRaw, error: txError }, { data: prices }] = await Promise.all([

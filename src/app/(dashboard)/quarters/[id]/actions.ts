@@ -7,9 +7,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { parseSourceCsv, type FieldMapping } from "@/lib/parsers/generic";
 import { resolveAll, type GameMapping } from "@/lib/mapping/resolve";
 import {
-  normalizeProductFields,
-  type NormalizationRule,
-} from "@/lib/pricing/normalize";
+  normaliseProductFields,
+  type NormalisationRule,
+} from "@/lib/pricing/normalise";
 import type { Source } from "@/lib/parsers/types";
 
 export async function uploadFiles(
@@ -28,7 +28,7 @@ export async function uploadFiles(
     throw new Error("No file selected");
   }
 
-  const [{ data: mappings }, { data: fieldRows }, { data: normalizations }] =
+  const [{ data: mappings }, { data: fieldRows }, { data: normalisations }] =
     await Promise.all([
       supabase.from("game_mappings").select("*"),
       supabase
@@ -37,7 +37,7 @@ export async function uploadFiles(
         .eq("source", source),
       supabase.from("product_normalizations").select("*"),
     ]);
-  const normRules = (normalizations ?? []) as NormalizationRule[];
+  const normRules = (normalisations ?? []) as NormalisationRule[];
 
   if (!fieldRows || fieldRows.length === 0) {
     throw new Error(
@@ -79,7 +79,7 @@ export async function uploadFiles(
     if (resolved.length > 0) {
       const { error: txError } = await supabase.from("transactions").insert(
         resolved.map((r) => {
-          const normalized = normalizeProductFields(
+          const normalised = normaliseProductFields(
             r.productType,
             r.variant,
             normRules,
@@ -93,9 +93,9 @@ export async function uploadFiles(
             raw_sku: r.rawSku ?? null,
             game_name: r.gameName,
             publisher_id: r.publisherId,
-            product_type: normalized.productType ?? null,
+            product_type: normalised.productType ?? null,
             listing_description: r.listingDescription,
-            variant: normalized.variant ?? null,
+            variant: normalised.variant ?? null,
             units_sold: r.unitsSold,
             unit_net: r.unitNet,
             total_net: r.totalNet,
@@ -123,36 +123,36 @@ export async function uploadFiles(
 }
 
 /**
- * Re-applies the current normalization rules to this quarter's already
+ * Re-applies the current normalisation rules to this quarter's already
  * uploaded transactions — so adding/editing a rule after uploading still
- * takes effect without re-uploading the file. Only rows whose normalized
+ * takes effect without re-uploading the file. Only rows whose normalised
  * value actually differs get written.
  */
-export async function reapplyNormalization(runId: string) {
+export async function reapplyNormalisation(runId: string) {
   await requireOwner();
   const supabase = createServiceClient();
 
-  const [{ data: txRows }, { data: normalizations }] = await Promise.all([
+  const [{ data: txRows }, { data: normalisations }] = await Promise.all([
     supabase
       .from("transactions")
       .select("id, product_type, variant")
       .eq("royalty_run_id", runId),
     supabase.from("product_normalizations").select("*"),
   ]);
-  const normRules = (normalizations ?? []) as NormalizationRule[];
+  const normRules = (normalisations ?? []) as NormalisationRule[];
 
   let updated = 0;
   for (const row of txRows ?? []) {
-    const normalized = normalizeProductFields(
+    const normalised = normaliseProductFields(
       row.product_type ?? undefined,
       row.variant ?? undefined,
       normRules,
     );
-    if (normalized.productType === row.product_type && normalized.variant === row.variant) continue;
+    if (normalised.productType === row.product_type && normalised.variant === row.variant) continue;
 
     const { error } = await supabase
       .from("transactions")
-      .update({ product_type: normalized.productType ?? null, variant: normalized.variant ?? null })
+      .update({ product_type: normalised.productType ?? null, variant: normalised.variant ?? null })
       .eq("id", row.id);
     if (error) throw new Error(error.message);
     updated += 1;

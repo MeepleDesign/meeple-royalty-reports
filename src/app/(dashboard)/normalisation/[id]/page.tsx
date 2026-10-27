@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
-import { NormalizationForm } from "../NormalizationForm";
-import { updateNormalization, deleteNormalization } from "../actions";
+import { NormalisationForm } from "../NormalisationForm";
+import { updateNormalisation, deleteNormalisation } from "../actions";
 
-export default async function EditNormalizationPage({
+export default async function EditNormalisationPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -20,14 +20,14 @@ export default async function EditNormalizationPage({
         <h1 className="text-xl font-semibold text-neutral-900">
           {rule.raw_pattern} → {rule.canonical_value}
         </h1>
-        <form action={deleteNormalization.bind(null, id)}>
+        <form action={deleteNormalisation.bind(null, id)}>
           <button type="submit" className="btn-danger">
             Delete rule
           </button>
         </form>
       </div>
       <div className="card">
-        <NormalizationForm action={updateNormalization.bind(null, id)} rule={rule} />
+        <NormalisationForm action={updateNormalisation.bind(null, id)} rule={rule} />
       </div>
     </div>
   );

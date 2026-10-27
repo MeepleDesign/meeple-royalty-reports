@@ -27,7 +27,7 @@ export const MAPPING_COLUMN_ALIASES: Record<string, string[]> = {
   notes: ["notes", "note"],
 };
 
-export function normalizeKey(key: string): string {
+export function normaliseKey(key: string): string {
   return key
     .replace(/^﻿/, "") // strip a UTF-8 BOM, common from Excel exports
     .trim()
@@ -38,7 +38,7 @@ export function normalizeKey(key: string): string {
 
 /**
  * Tries an exact alias match first; if none of the row's columns exactly
- * match an alias, falls back to "does this column's normalized name
+ * match an alias, falls back to "does this column's normalised name
  * contain the alias" (e.g. a column literally called "Search Pattern"
  * still satisfies the "pattern" alias for match_pattern).
  */
@@ -46,16 +46,16 @@ export function findValue(
   row: Record<string, string>,
   field: keyof typeof MAPPING_COLUMN_ALIASES
 ): string | undefined {
-  const normalizedRow = Object.entries(row).map(([k, v]) => [normalizeKey(k), v] as const);
+  const normalisedRow = Object.entries(row).map(([k, v]) => [normaliseKey(k), v] as const);
   const aliases = MAPPING_COLUMN_ALIASES[field];
 
   for (const alias of aliases) {
-    const match = normalizedRow.find(([k]) => k === normalizeKey(alias));
+    const match = normalisedRow.find(([k]) => k === normaliseKey(alias));
     if (match && match[1]?.trim()) return match[1].trim();
   }
   for (const alias of aliases) {
-    const normalizedAlias = normalizeKey(alias);
-    const match = normalizedRow.find(([k]) => k.includes(normalizedAlias));
+    const normalisedAlias = normaliseKey(alias);
+    const match = normalisedRow.find(([k]) => k.includes(normalisedAlias));
     if (match && match[1]?.trim()) return match[1].trim();
   }
   return undefined;

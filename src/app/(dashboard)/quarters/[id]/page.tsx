@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { uploadFiles, addManualRow, deleteUpload } from "./actions";
-import { finalizeQuarter } from "./finalize";
+import { finaliseQuarter } from "./finalise";
 import { quarterLabel } from "@/lib/royalty/quarter";
 import { ManualEntryForm } from "./ManualEntryForm";
-import { ReapplyNormalizationButton } from "./ReapplyNormalizationButton";
+import { ReapplyNormalisationButton } from "./ReapplyNormalisationButton";
 import { findMissingPriceCombos } from "@/lib/pricing/gaps";
 
 export default async function QuarterPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,16 +38,17 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
 
   const label = quarterLabel(run.year, run.quarter);
   const needsReview = reviewCount ?? 0;
+  const statusLabel = run.status === "finalized" ? "finalised" : run.status;
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-neutral-900">
-          {label} <span className="text-neutral-400 text-sm font-normal capitalize">({run.status})</span>
+          {label} <span className="text-neutral-400 text-sm font-normal capitalize">({statusLabel})</span>
         </h1>
         {run.status === "finalized" && (
           <span className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-1">
-            Finalized {new Date(run.finalized_at).toLocaleDateString()}
+            Finalised {new Date(run.finalized_at).toLocaleDateString()}
           </span>
         )}
       </div>
@@ -103,7 +104,7 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
                 {missingPrices.length} product/variant combo(s) have no standard price — their Item
                 Total will be blank on the report unless you add one →
               </Link>
-              <ReapplyNormalizationButton runId={runId} />
+              <ReapplyNormalisationButton runId={runId} />
             </div>
           )}
 
@@ -111,15 +112,15 @@ export default async function QuarterPage({ params }: { params: Promise<{ id: st
             <div>
               {needsReview > 0 ? (
                 <Link href={`/quarters/${runId}/review`} className="text-amber-700 font-medium hover:underline">
-                  {needsReview} row(s) need review before you can finalize →
+                  {needsReview} row(s) need review before you can finalise →
                 </Link>
               ) : (
-                <span className="text-green-700 font-medium">All rows mapped — ready to finalize</span>
+                <span className="text-green-700 font-medium">All rows mapped — ready to finalise</span>
               )}
             </div>
-            <form action={finalizeQuarter.bind(null, runId)}>
+            <form action={finaliseQuarter.bind(null, runId)}>
               <button type="submit" disabled={needsReview > 0} className="btn-primary disabled:opacity-40">
-                Finalize &amp; generate Sheets
+                Finalise &amp; generate Sheets
               </button>
             </form>
           </div>

@@ -43,7 +43,7 @@ Drive.
      - **`GOOGLE_OAUTH_SHEETS_REFRESH_TOKEN`**
    - **Pass 2 (Drive):** repeat, this time selecting the **Google Drive API v3** scope (`https://www.googleapis.com/auth/drive`) instead:
      - **`GOOGLE_OAUTH_DRIVE_REFRESH_TOKEN`**
-6. In your own Google Drive, create a folder called e.g. **"Royalty Reports"**. This is the root folder everything gets organized under.
+6. In your own Google Drive, create a folder called e.g. **"Royalty Reports"**. This is the root folder everything gets organised under.
 7. Open the folder in the browser and copy its ID from the URL
    (`https://drive.google.com/drive/folders/`**`THIS_PART_IS_THE_ID`**):
    - **`ROYALTY_ROOT_FOLDER_ID`**

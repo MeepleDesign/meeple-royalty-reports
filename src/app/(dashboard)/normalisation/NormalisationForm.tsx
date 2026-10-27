@@ -1,4 +1,4 @@
-type Normalization = {
+type Normalisation = {
   raw_field?: string;
   match_type?: string;
   raw_pattern?: string;
@@ -7,12 +7,12 @@ type Normalization = {
   notes?: string | null;
 };
 
-export function NormalizationForm({
+export function NormalisationForm({
   action,
   rule,
 }: {
   action: (formData: FormData) => void | Promise<void>;
-  rule?: Normalization;
+  rule?: Normalisation;
 }) {
   return (
     <form action={action} className="space-y-5 max-w-xl">

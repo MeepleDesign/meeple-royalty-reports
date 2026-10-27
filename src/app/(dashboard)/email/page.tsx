@@ -85,7 +85,7 @@ export default async function EmailPage({
 
       {publisherId && runId && !balance && (
         <div className="card text-amber-700">
-          No finalized balance for this publisher in this quarter yet — finalize the quarter first.
+          No finalised balance for this publisher in this quarter yet — finalise the quarter first.
         </div>
       )}
 
