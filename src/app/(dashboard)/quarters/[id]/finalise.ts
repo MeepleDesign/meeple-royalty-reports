@@ -38,6 +38,7 @@ interface PublisherRow {
   annual_due_quarter: number;
   roll_forward: boolean;
   payout_threshold: number | null;
+  pays_royalties: boolean;
 }
 
 interface TransactionRow {
@@ -112,6 +113,11 @@ export async function finaliseQuarter(runId: string) {
 
   for (const [publisherId, rows] of byPublisher) {
     const publisher = rows[0].publishers;
+    if (!publisher.pays_royalties) {
+      // Sales still count toward internal Analytics via the transactions
+      // table — just no royalty report/Drive folder/sheet is generated.
+      continue;
+    }
     const settings: PublisherSettings = {
       id: publisherId,
       royaltyRate: publisher.royalty_rate,

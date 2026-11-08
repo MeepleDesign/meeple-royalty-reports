@@ -17,6 +17,7 @@ function parsePublisherForm(formData: FormData) {
     annual_due_quarter: parseInt(String(formData.get("annual_due_quarter") || "4"), 10),
     roll_forward: rollForward,
     payout_threshold: rollForward && thresholdRaw ? parseFloat(thresholdRaw) : null,
+    pays_royalties: formData.get("pays_royalties") === "on",
     contact_email: String(formData.get("contact_email") || "").trim() || null,
     email_template: String(formData.get("email_template") || "").trim() || null,
     notes: String(formData.get("notes") || "").trim() || null,

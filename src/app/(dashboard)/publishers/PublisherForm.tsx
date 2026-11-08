@@ -5,6 +5,7 @@ type Publisher = {
   annual_due_quarter?: number;
   roll_forward?: boolean;
   payout_threshold?: number | null;
+  pays_royalties?: boolean;
   contact_email?: string | null;
   email_template?: string | null;
   notes?: string | null;
@@ -27,6 +28,22 @@ export function PublisherForm({
           className="input"
         />
       </Field>
+
+      <div className="flex items-center gap-2">
+        <input
+          id="pays_royalties"
+          name="pays_royalties"
+          type="checkbox"
+          defaultChecked={publisher?.pays_royalties ?? true}
+        />
+        <label htmlFor="pays_royalties" className="text-sm text-neutral-700">
+          We pay royalties to this publisher
+        </label>
+      </div>
+      <p className="text-xs text-neutral-500 -mt-3">
+        Unchecking this skips generating a royalty report/Drive folder for this publisher when a
+        quarter is finalised — their sales still count in internal Analytics.
+      </p>
 
       <Field label="Royalty rate (%)">
         <input

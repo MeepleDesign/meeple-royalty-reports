@@ -28,6 +28,7 @@ export default async function PublishersPage() {
               <th className="px-4 py-2">Rate</th>
               <th className="px-4 py-2">Basis</th>
               <th className="px-4 py-2">Roll-forward</th>
+              <th className="px-4 py-2">Royalty?</th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
@@ -43,6 +44,13 @@ export default async function PublishersPage() {
                 <td className="px-4 py-2">
                   {p.roll_forward ? `Yes (threshold £${p.payout_threshold ?? 0})` : "No"}
                 </td>
+                <td className="px-4 py-2">
+                  {p.pays_royalties ? (
+                    "Yes"
+                  ) : (
+                    <span className="text-neutral-400">No</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right">
                   <Link href={`/publishers/${p.id}`} className="text-neutral-600 hover:underline">
                     Edit
@@ -52,7 +60,7 @@ export default async function PublishersPage() {
             ))}
             {(publishers ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-neutral-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
                   No publishers yet.
                 </td>
               </tr>
