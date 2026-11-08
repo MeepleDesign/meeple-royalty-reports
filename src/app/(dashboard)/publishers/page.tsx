@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
-
+import { ImportPublishersForm } from "./ImportPublishersForm";
+import { SheetSyncControls } from "./SheetSyncControls";
+import { getCurrentPublisherSheetLink } from "./sheet-actions";
 
 export default async function PublishersPage() {
   const supabase = createServiceClient();
+  const currentSheet = await getCurrentPublisherSheetLink();
   const { data: publishers, error } = await supabase
     .from("publishers")
     .select("*")
@@ -19,6 +22,9 @@ export default async function PublishersPage() {
           New publisher
         </Link>
       </div>
+
+      <ImportPublishersForm />
+      <SheetSyncControls current={currentSheet} />
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
