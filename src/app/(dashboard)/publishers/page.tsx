@@ -3,13 +3,14 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { ImportPublishersForm } from "./ImportPublishersForm";
 import { SheetSyncControls } from "./SheetSyncControls";
 import { getCurrentPublisherSheetLink } from "./sheet-actions";
+import { PublisherTable } from "./PublisherTable";
 
 export default async function PublishersPage() {
   const supabase = createServiceClient();
   const currentSheet = await getCurrentPublisherSheetLink();
   const { data: publishers, error } = await supabase
     .from("publishers")
-    .select("*")
+    .select("id, name, royalty_rate, payment_basis, annual_due_quarter, roll_forward, payout_threshold, pays_royalties")
     .order("name");
 
   if (error) throw new Error(error.message);
@@ -26,54 +27,19 @@ export default async function PublishersPage() {
       <ImportPublishersForm />
       <SheetSyncControls current={currentSheet} />
 
-      <div className="card p-0 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-left text-neutral-500">
-            <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Rate</th>
-              <th className="px-4 py-2">Basis</th>
-              <th className="px-4 py-2">Roll-forward</th>
-              <th className="px-4 py-2">Royalty?</th>
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {(publishers ?? []).map((p) => (
-              <tr key={p.id}>
-                <td className="px-4 py-2 font-medium text-neutral-900">{p.name}</td>
-                <td className="px-4 py-2">{(p.royalty_rate * 100).toFixed(1)}%</td>
-                <td className="px-4 py-2 capitalize">
-                  {p.payment_basis}
-                  {p.payment_basis === "annual" ? ` (Q${p.annual_due_quarter})` : ""}
-                </td>
-                <td className="px-4 py-2">
-                  {p.roll_forward ? `Yes (threshold £${p.payout_threshold ?? 0})` : "No"}
-                </td>
-                <td className="px-4 py-2">
-                  {p.pays_royalties ? (
-                    "Yes"
-                  ) : (
-                    <span className="text-neutral-400">No</span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <Link href={`/publishers/${p.id}`} className="text-neutral-600 hover:underline">
-                    Edit
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {(publishers ?? []).length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-neutral-400">
-                  No publishers yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <p className="text-sm text-neutral-500">
+        Edit rates, basis, roll-forward or the royalty flag directly below, then save all changes
+        at once. Use &quot;More…&quot; to edit contact email, the email template or notes for one
+        publisher.
+      </p>
+
+      <PublisherTable
+        initialPublishers={(publishers ?? []).map((p) => ({
+          ...p,
+          royalty_rate: Number(p.royalty_rate),
+          payout_threshold: p.payout_threshold === null ? null : Number(p.payout_threshold),
+        }))}
+      />
     </div>
   );
 }
