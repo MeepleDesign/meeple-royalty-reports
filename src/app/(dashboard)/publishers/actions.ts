@@ -55,7 +55,30 @@ export async function updatePublisher(publisherId: string, formData: FormData) {
 export async function deletePublisher(publisherId: string) {
   await requireOwner();
   const supabase = createServiceClient();
+
+  // game_mappings/transactions aren't set to cascade on delete, so check
+  // first and give a clear message rather than letting the FK violation
+  // crash the page.
+  const [{ count: mappingCount }, { count: transactionCount }] = await Promise.all([
+    supabase.from("game_mappings").select("id", { count: "exact", head: true }).eq("publisher_id", publisherId),
+    supabase.from("transactions").select("id", { count: "exact", head: true }).eq("publisher_id", publisherId),
+  ]);
+
+  if ((mappingCount ?? 0) > 0 || (transactionCount ?? 0) > 0) {
+    const parts: string[] = [];
+    if (mappingCount) parts.push(`${mappingCount} game mapping(s)`);
+    if (transactionCount) parts.push(`${transactionCount} transaction(s)`);
+    redirect(
+      `/publishers/${publisherId}?error=${encodeURIComponent(
+        `Can't delete — ${parts.join(" and ")} still reference this publisher. Reassign or delete those first.`
+      )}`
+    );
+  }
+
   const { error } = await supabase.from("publishers").delete().eq("id", publisherId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    redirect(`/publishers/${publisherId}?error=${encodeURIComponent(error.message)}`);
+  }
   revalidatePath("/publishers");
+  redirect("/publishers");
 }
